@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  postgres-checkin:
+    image: postgres:15-alpine
+    container_name: neural-balance-postgres-checkin
+    environment:
+      POSTGRES_DB: neural_balance_checkin
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_checkin_data:/var/lib/postgresql/data
+    networks:
+      - neural-balance-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  daily-checkin-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: neural-balance-checkin-service
+    env_file:
+      - .env
+    environment:
+      DB_HOST: postgres-checkin
+      DB_PORT: 5432
+      DB_NAME: neural_balance_checkin
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      SERVER_PORT: 8082
+      JWT_EXPIRATION: 86400000
+      LOG_LEVEL: INFO
+      SHOW_SQL: false
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres-checkin:
+        condition: service_healthy
+    networks:
+      - neural-balance-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8082/api/v1/checkins/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  neural-balance-network:
+    driver: bridge
+
+volumes:
+  postgres_checkin_data:
+    driver: local
