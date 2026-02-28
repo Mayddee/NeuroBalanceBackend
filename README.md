@@ -152,8 +152,6 @@ TWILIO_AUTH_TOKEN=your_auth_token
 TWILIO_PHONE_NUMBER=+1XXXXXXXXXX
 ```
 
-> ⚠️ Файл `.env` уже добавлен в `.gitignore` — он **не попадёт в репозиторий**. Это правильно.
-
 ---
 
 ### Как получить Gmail App Password (для MAIL_PASSWORD)
