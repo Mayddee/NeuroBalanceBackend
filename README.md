@@ -1,1 +1,395 @@
-# NeuroBalanceBackend
+
+# NeuroBalanceBackend — Setup & Launch Guide
+
+Пошаговое руководство по настройке окружения, подключению в **IntelliJ IDEA** и запуску проекта через **Docker**.
+
+---
+
+## 📦 Содержание
+
+1. [Что нужно установить](#1-что-нужно-установить)
+2. [Клонирование и открытие в IntelliJ IDEA](#2-клонирование-и-открытие-в-intellij-idea)
+3. [Настройка .env файла](#3-настройка-env-файла)
+4. [Запуск через Docker](#4-запуск-через-docker)
+5. [PgAdmin — управление базами данных](#5-pgadmin--управление-базами-данных)
+6. [Swagger — документация и тестирование API](#6-swagger--документация-и-тестирование-api)
+7. [Все доступные адреса после запуска](#7-все-доступные-адреса-после-запуска)
+
+---
+
+## 1. Что нужно установить
+
+Скачайте и установите следующие инструменты:
+
+### Docker Desktop
+> Запускает все сервисы (базы данных, приложения) в контейнерах
+
+- Скачать: https://www.docker.com/products/docker-desktop
+- Установить как обычное приложение
+- После установки убедитесь, что Docker Desktop **запущен** (иконка в трее)
+
+Проверка в терминале:
+```bash
+docker --version
+docker compose version
+```
+
+---
+
+### IntelliJ IDEA
+> IDE для разработки на Java/Spring Boot
+
+- Скачать: https://www.jetbrains.com/idea/download
+- Подойдёт **Community** (бесплатная) или **Ultimate**
+
+При первом запуске IntelliJ IDEA установите плагины (если предложит):
+- **Docker** — интеграция с Docker
+- **EnvFile** — для работы с `.env` файлами
+
+---
+
+### Java 17 (JDK)
+> Среда выполнения для Spring Boot приложений
+
+- Скачать: https://adoptium.net/temurin/releases/?version=17
+- Выберите: **Temurin 17**, ваша ОС, `.msi` (Windows) или `.pkg` (macOS)
+- Установить как обычную программу
+
+Проверка:
+```bash
+java -version
+# Должно показать: openjdk version "17.x.x"
+```
+
+---
+
+## 2. Клонирование и открытие в IntelliJ IDEA
+
+### Шаг 1 — Клонировать репозиторий
+
+Откройте терминал и выполните:
+
+```bash
+git clone <URL_вашего_репозитория>
+cd NeuroBalanceBackend
+```
+
+Или через IntelliJ IDEA:
+- Запустите IDEA → **Get from VCS**
+- Вставьте URL репозитория → **Clone**
+
+---
+
+### Шаг 2 — Открыть проект
+
+- File → **Open** → выберите папку `NeuroBalanceBackend`
+- IntelliJ IDEA обнаружит несколько Maven-модулей (`NBAuthService`, `NBCheckinService`)
+- Нажмите **Trust Project** если спросит
+
+---
+
+### Шаг 3 — Настроить JDK в IDEA
+
+- File → **Project Structure** (`Cmd+;` / `Ctrl+Alt+Shift+S`)
+- **Project** → SDK → выберите **Java 17** (или нажмите **Add SDK** → **JDK** → укажите путь установки)
+- **Apply** → **OK**
+
+---
+
+### Шаг 4 — Загрузить Maven зависимости
+
+- Откройте панель **Maven** (правая боковая панель)
+- Нажмите кнопку **🔄 Reload All Maven Projects**
+- Подождите, пока загрузятся все зависимости
+
+---
+
+## 3. Настройка .env файла
+
+В корне проекта создайте файл `.env` на основе `.env.example`:
+
+```bash
+cp .env.example .env
+```
+
+Откройте `.env` в IntelliJ IDEA и заполните значения:
+
+```env
+# AUTH DB
+AUTH_DB_NAME=nbauthservice
+AUTH_DB_USER=amangeldimadina
+AUTH_DB_PASSWORD=mayddee
+AUTH_DB_PORT=5434
+
+# CHECKIN DB
+CHECKIN_DB_NAME=nb_checkin
+CHECKIN_DB_USER=amangeldimadina
+CHECKIN_DB_PASSWORD=mayddee
+CHECKIN_DB_PORT=5435
+
+# PGADMIN
+PGADMIN_EMAIL=admin@admin.com
+PGADMIN_PASSWORD=admin
+PGADMIN_PORT=5051
+
+# JWT
+JWT_SECRET=RjvtMF7pgKMqcaeQPzmP0aGgHbOOX8ytteqBjbGIBDw=
+JWT_EXPIRATION=86400000
+
+# MAIL
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=your_email@gmail.com
+MAIL_PASSWORD=your_app_password
+MAIL_SMTP_AUTH=true
+MAIL_STARTTLS_ENABLE=true
+MAIL_STARTTLS_REQUIRED=true
+MAIL_SSL_TRUST=smtp.gmail.com
+
+# Twilio
+TWILIO_ACCOUNT_SID=your_account_sid
+TWILIO_AUTH_TOKEN=your_auth_token
+TWILIO_PHONE_NUMBER=+1XXXXXXXXXX
+```
+
+---
+
+### Как получить Gmail App Password (для MAIL_PASSWORD)
+
+1. Войдите в [myaccount.google.com](https://myaccount.google.com)
+2. **Безопасность** → включите **Двухэтапную аутентификацию**
+3. **Безопасность** → **Пароли приложений**
+4. Выберите приложение: **Почта**, устройство: **Другое** → введите "NeuroBalance"
+5. Скопируйте 16-символьный код → вставьте в `MAIL_PASSWORD` **без пробелов**
+
+---
+
+### Где взять Twilio credentials (для SMS)
+
+1. Зарегистрируйтесь на [twilio.com/try-twilio](https://www.twilio.com/try-twilio)
+2. На главной Dashboard найдите блок **Account Info**:
+   - `TWILIO_ACCOUNT_SID` — строка начинается с `AC...`
+   - `TWILIO_AUTH_TOKEN` — нажмите 👁 чтобы показать
+3. Получите номер: **Phone Numbers** → **Get a Trial Number**
+4. Скопируйте номер в формате `+1XXXXXXXXXX` → вставьте в `TWILIO_PHONE_NUMBER`
+
+> На trial-аккаунте SMS можно слать только на **верифицированные номера** (Verified Caller IDs)
+
+---
+
+## 4. Запуск через Docker
+
+> Убедитесь, что **Docker Desktop запущен** перед выполнением команд!
+
+### Открыть терминал в IntelliJ IDEA
+
+- Нижняя панель → вкладка **Terminal**
+- Или: `Alt+F12` (Windows/Linux) / `⌥F12` (macOS)
+
+---
+
+### Первый запуск
+
+```bash
+# Находясь в корне проекта (где лежит docker-compose.yml)
+docker compose up -d --build
+```
+
+Флаги:
+- `-d` — запуск в фоне (detached mode)
+- `--build` — сборка Docker-образов перед запуском
+
+**Первый запуск займёт 3–7 минут** — Docker скачает образы и соберёт приложения.
+
+---
+
+### Проверить статус контейнеров
+
+```bash
+docker compose ps
+```
+
+Ожидаемый результат — все контейнеры в статусе `running`:
+
+```
+NAME                    STATUS          PORTS
+nbauthservice-db        running         0.0.0.0:5434->5432/tcp
+nbauthservice-pgadmin   running         0.0.0.0:5051->80/tcp
+nbauthservice           running         0.0.0.0:8081->8081/tcp
+nb-checkin-db           running         0.0.0.0:5435->5432/tcp
+nb-checkin-service      running         0.0.0.0:8082->8082/tcp
+```
+
+---
+
+### Просмотр логов
+
+```bash
+# Логи всех сервисов (live)
+docker compose logs -f
+
+# Логи только Auth сервиса
+docker compose logs -f nbauthservice
+
+# Логи только Checkin сервиса
+docker compose logs -f nb-checkin-service
+```
+
+Признак успешного старта Spring Boot:
+```
+Started NbAuthServiceApplication in 4.321 seconds
+```
+
+---
+
+### Остановка и перезапуск
+
+```bash
+# Остановить все контейнеры
+docker compose down
+
+# Запустить снова (без пересборки)
+docker compose up -d
+
+# Перезапустить один сервис
+docker compose restart nbauthservice
+
+# Пересобрать и перезапустить после изменений в коде
+docker compose up -d --build nbauthservice
+```
+
+---
+
+## 5. Подключение баз данных через PgAdmin
+
+Базы данных работают **только внутри Docker** — никакой локальной PostgreSQL устанавливать не нужно. Управление осуществляется через веб-интерфейс **PgAdmin**, который тоже поднимается в Docker.
+
+### Открыть PgAdmin
+
+После запуска `docker compose up -d --build` откройте браузер:
+
+```
+http://localhost:5051
+```
+
+Войдите:
+- **Email:** `admin@admin.com`
+- **Password:** `admin`
+
+---
+
+### Добавить Auth DB
+
+1. В левом меню правой кнопкой на **Servers** → **Register** → **Server**
+2. Вкладка **General** → поле **Name:** `Auth DB`
+3. Вкладка **Connection** — заполните:
+
+| Поле                 | Значение           |
+|----------------------|--------------------|
+| Host name / address  | `nbauthservice-db` |
+| Port                 | `5432`             |
+| Maintenance database | `nbauthservice`    |
+| Username             | `amangeldimadina`  |
+| Password             | `mayddee`          |
+
+4. Нажмите **Save**
+
+---
+
+### Добавить Checkin DB
+
+1. Снова правой кнопкой на **Servers** → **Register** → **Server**
+2. Вкладка **General** → **Name:** `Checkin DB`
+3. Вкладка **Connection**:
+
+| Поле                 | Значение          |
+|----------------------|-------------------|
+| Host name / address  | `nb-checkin-db`   |
+| Port                 | `5432`            |
+| Maintenance database | `nb_checkin`      |
+| Username             | `amangeldimadina` |
+| Password             | `mayddee`         |
+
+4. Нажмите **Save**
+
+> ⚠️ **Важно:** в PgAdmin хост — это **имя Docker-контейнера** (`nbauthservice-db`, `nb-checkin-db`), а не `localhost`. PgAdmin и базы данных находятся в одной Docker-сети, поэтому они видят друг друга по именам контейнеров.
+
+После добавления в левом меню появятся оба сервера. Раскройте любой: **Databases** → имя БД → **Schemas** → **Tables** — здесь будут все таблицы, которые создал Hibernate при старте сервисов.
+
+---
+
+## 6. Swagger — документация и тестирование API
+
+Swagger UI позволяет просматривать все эндпоинты и отправлять запросы прямо из браузера — без Postman и curl.
+
+### Открыть Swagger
+
+После запуска проекта откройте в браузере:
+
+**NBAuthService (аутентификация):**
+```
+http://localhost:8081/swagger-ui/index.html
+```
+
+**NBCheckinService (чекины):**
+```
+http://localhost:8082/swagger-ui/index.html
+```
+
+---
+
+### Как пользоваться Swagger
+
+**Шаг 1 — Зарегистрировать пользователя**
+1. Найдите эндпоинт `POST /auth/register` (или аналогичный)
+2. Нажмите на него → **Try it out**
+3. Заполните тело запроса (JSON) → нажмите **Execute**
+4. Внизу увидите ответ сервера
+
+**Шаг 2 — Получить JWT-токен**
+1. Найдите `POST /auth/login`
+2. **Try it out** → введите логин/пароль → **Execute**
+3. В ответе скопируйте значение поля `token` (без кавычек)
+
+**Шаг 3 — Авторизоваться в Swagger**
+1. Нажмите кнопку **Authorize** 🔒 в правом верхнем углу страницы
+2. В поле **Value** введите:
+   ```
+   Bearer <вставьте_ваш_токен_сюда>
+   ```
+3. Нажмите **Authorize** → **Close**
+
+Теперь все защищённые эндпоинты будут автоматически отправлять токен в заголовке. Можно тестировать любые запросы.
+
+---
+
+## 7. Все доступные адреса после запуска
+
+| Сервис            | URL                                        | Описание                    |
+|-------------------|--------------------------------------------|-----------------------------|
+| NBAuthService     | http://localhost:8081                      | REST API аутентификации      |
+| Swagger Auth      | http://localhost:8081/swagger-ui/index.html| Документация Auth API        |
+| NBCheckinService  | http://localhost:8082                      | REST API чекинов             |
+| Swagger Checkin   | http://localhost:8082/swagger-ui/index.html| Документация Checkin API     |
+| PgAdmin           | http://localhost:5051                      | Веб-интерфейс управления БД  |
+
+---
+
+## Частые проблемы
+
+**PgAdmin не открывается** — подождите 20–30 секунд после `docker compose up`, PgAdmin стартует чуть дольше остальных.
+
+**Swagger возвращает 404** — проверьте, что сервис запустился: `docker compose logs nbauthservice`. Если Swagger не подключён как зависимость в `pom.xml`, страница будет недоступна.
+
+**Таблицы не появились в PgAdmin** — зайдите в **Tools** → **Query Tool**, выполните `SELECT * FROM information_schema.tables WHERE table_schema = 'public';`. Если пусто — проверьте логи сервиса на ошибки Hibernate.
+
+**Порт уже занят**
+```bash
+lsof -i :5051      # macOS/Linux
+netstat -ano | findstr :5051   # Windows
+```
+
+**После изменения кода изменения не применяются**
+```bash
+docker compose up -d --build
+```
