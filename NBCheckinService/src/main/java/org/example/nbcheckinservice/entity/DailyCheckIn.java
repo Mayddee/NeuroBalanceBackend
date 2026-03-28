@@ -14,10 +14,7 @@ import java.time.LocalDateTime;
  * Entity representing a daily check-in record
  */
 @Entity
-@Table(
-        name = "daily_check_ins",
-        uniqueConstraints = {
-                @UniqueConstraint(columnNames = {"user_id", "check_in_date"})
+@Table(name = "daily_check_ins", uniqueConstraints = { @UniqueConstraint(columnNames = {"user_id", "check_in_date"})
         }
 )
 @Getter

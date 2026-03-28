@@ -1,7 +1,9 @@
 version: '3.9'
 
 services:
+  # ===============================
   # AUTH SERVICE
+  # ===============================
   postgres:
     image: postgres:15-alpine
     container_name: nbauthservice-db
@@ -40,9 +42,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${AUTH_DB_NAME}
       SPRING_DATASOURCE_USERNAME: ${AUTH_DB_USER}
       SPRING_DATASOURCE_PASSWORD: ${AUTH_DB_PASSWORD}
-
       JWT_SECRET: ${JWT_SECRET}
-
       SPRING_MAIL_HOST: ${MAIL_HOST}
       SPRING_MAIL_PORT: ${MAIL_PORT}
       SPRING_MAIL_USERNAME: ${MAIL_USERNAME}
@@ -51,7 +51,6 @@ services:
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: ${MAIL_STARTTLS_ENABLE}
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_REQUIRED: ${MAIL_STARTTLS_REQUIRED}
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_TRUST: ${MAIL_SSL_TRUST}
-
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_JPA_SHOW_SQL: "true"
     ports:
@@ -59,7 +58,9 @@ services:
     networks:
       - nbauthservice-network
 
+  # ===============================
   # CHECK-IN SERVICE
+  # ===============================
   postgres-checkin:
     image: postgres:15-alpine
     container_name: nb-checkin-db
@@ -93,22 +94,16 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-checkin:5432/${CHECKIN_DB_NAME}
       SPRING_DATASOURCE_USERNAME: ${CHECKIN_DB_USER}
       SPRING_DATASOURCE_PASSWORD: ${CHECKIN_DB_PASSWORD}
-
       SERVER_PORT: 8082
-
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION: ${JWT_EXPIRATION}
-
       TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
       TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER}
-
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_JPA_SHOW_SQL: "true"
-
       SPRING_FLYWAY_ENABLED: "true"
       SPRING_FLYWAY_BASELINE_ON_MIGRATE: "true"
-
       LOGGING_LEVEL_ROOT: INFO
       LOGGING_LEVEL_COM_NEURALBALANCE: DEBUG
     ports:
@@ -117,9 +112,59 @@ services:
       - nbauthservice-network
     restart: unless-stopped
 
+  # ===============================
+  # NOTE-AI SERVICE (НОВЫЙ!)
+  # ===============================
+  postgres-noteai:
+    image: postgres:15-alpine
+    container_name: noteai-db
+    environment:
+      POSTGRES_DB: ${NOTEAI_DB_NAME}
+      POSTGRES_USER: ${NOTEAI_DB_USER}
+      POSTGRES_PASSWORD: ${NOTEAI_DB_PASSWORD}
+    ports:
+      - "${NOTEAI_DB_PORT}:5432"
+    volumes:
+      - postgres_noteai_data:/var/lib/postgresql/data
+    networks:
+      - nbauthservice-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${NOTEAI_DB_USER} -d ${NOTEAI_DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  noteai-service:
+    build:
+      context: ./NoteAI-backend
+      dockerfile: Dockerfile
+    container_name: noteai-service
+    depends_on:
+      postgres-noteai:
+        condition: service_healthy
+      nbauthservice:
+        condition: service_started
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-noteai:5432/${NOTEAI_DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${NOTEAI_DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${NOTEAI_DB_PASSWORD}
+      SERVER_PORT: 8083
+      JWT_SECRET: ${JWT_SECRET}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_SHOW_SQL: "true"
+      LOGGING_LEVEL_ROOT: INFO
+      LOGGING_LEVEL_ORG_EXAMPLE_AINOTE: DEBUG
+    ports:
+      - "8083:8083"
+    networks:
+      - nbauthservice-network
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   postgres_checkin_data:
+  postgres_noteai_data:
 
 networks:
   nbauthservice-network:
