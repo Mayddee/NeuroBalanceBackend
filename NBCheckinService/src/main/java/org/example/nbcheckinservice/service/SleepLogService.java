@@ -53,11 +53,11 @@ public class SleepLogService {
      * Get sleep log by ID
      */
     @Transactional(readOnly = true)
-    public SleepLogResponse getSleepLog(Long id) {
-        log.debug("Fetching sleep log {}", id);
+    public SleepLogResponse getSleepLog(Long userId, Long id) { // ✅ Добавлен userId
+        log.debug("Fetching sleep log {} for user {}", id, userId);
 
-        SleepLog sleepLog = sleepLogRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Sleep log not found: " + id));
+        SleepLog sleepLog = sleepLogRepository.findByIdAndUserId(id, userId) // ✅ findByIdAndUserId
+                .orElseThrow(() -> new IllegalArgumentException("Sleep log not found or access denied"));
 
         return mapToResponse(sleepLog);
     }
@@ -146,18 +146,14 @@ public class SleepLogService {
      * Update sleep log
      */
     @Transactional
-    public SleepLogResponse updateSleepLog(Long id, SleepLogRequest request) {
-        log.info("Updating sleep log {}", id);
+    public SleepLogResponse updateSleepLog(Long userId, Long id, SleepLogRequest request) {
+        log.info("Updating sleep log {} for user {}", id, userId);
 
-        SleepLog sleepLog = sleepLogRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Sleep log not found: " + id));
+        SleepLog sleepLog = sleepLogRepository.findByIdAndUserId(id, userId)
+                .orElseThrow(() -> new IllegalArgumentException("Sleep log not found or access denied"));
 
         updateSleepLogFields(sleepLog, request);
-
-        SleepLog updatedLog = sleepLogRepository.save(sleepLog);
-        log.info("Sleep log {} updated", id);
-
-        return mapToResponse(updatedLog);
+        return mapToResponse(sleepLogRepository.save(sleepLog));
     }
 
     /**
@@ -188,15 +184,13 @@ public class SleepLogService {
      * Delete sleep log
      */
     @Transactional
-    public void deleteSleepLog(Long id) {
-        log.info("Deleting sleep log {}", id);
+    public void deleteSleepLog(Long userId, Long id) {
+        log.info("Deleting sleep log {} for user {}", id, userId);
 
-        if (!sleepLogRepository.existsById(id)) {
-            throw new IllegalArgumentException("Sleep log not found: " + id);
-        }
+        SleepLog sleepLog = sleepLogRepository.findByIdAndUserId(id, userId)
+                .orElseThrow(() -> new IllegalArgumentException("Sleep log not found or access denied"));
 
-        sleepLogRepository.deleteById(id);
-        log.info("Sleep log {} deleted", id);
+        sleepLogRepository.delete(sleepLog);
     }
 
     /**
@@ -215,7 +209,6 @@ public class SleepLogService {
         log.info("Sleep log deleted for date {}", date);
     }
 
-    // ========== HELPER METHODS ==========
 
     private SleepLog buildSleepLogFromRequest(Long userId, SleepLogRequest request, LocalDate sleepDate) {
         return SleepLog.builder()
@@ -356,9 +349,10 @@ public class SleepLogService {
                 .id(sleepLog.getId())
                 .userId(sleepLog.getUserId())
                 .sleepDate(sleepLog.getSleepDate())
-                .bedtime(sleepLog.getBedtime())
-                .wakeTime(sleepLog.getWakeTime())
-                .fellAsleepTime(sleepLog.getFellAsleepTime())
+                // Устранение ошибки: конвертируем LocalTime в LocalDateTime для Response
+                .bedtime(sleepLog.getBedtime() != null ? sleepLog.getBedtime().atDate(sleepLog.getSleepDate()) : null)
+                .wakeTime(sleepLog.getWakeTime() != null ? sleepLog.getWakeTime().atDate(sleepLog.getSleepDate()) : null)
+                .fellAsleepTime(sleepLog.getFellAsleepTime() != null ? sleepLog.getFellAsleepTime().atDate(sleepLog.getSleepDate()) : null)
                 .totalHours(sleepLog.getTotalHours())
                 .actualSleepHours(sleepLog.getActualSleepHours())
                 .timeToFallAsleepMinutes(sleepLog.getTimeToFallAsleepMinutes())

@@ -110,26 +110,7 @@ public boolean validateToken(String token) {
 
     }
 
-//    private String getId(String token) {
-//        return Jwts.parser()
-//                .setSigningKey(secretKey)
-//                .build()
-//                .parseClaimsJws(token)
-//                .getBody()
-//                .get("id")
-//                .toString();
-//    }
-//
-//    private String getUsername(String token){
-//        return Jwts
-//                .parser()
-//                .setSigningKey(secretKey)
-//                .build()
-//                .parseClaimsJws(token)
-//                .getBody()
-//                .getSubject()
-//                .toString();
-//    }
+
 public String getId(String token) {
     return Jwts.parser()
             .setSigningKey(secretKey)

@@ -5,12 +5,14 @@ import jakarta.validation.constraints.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.LocalDateTime;
 
 /**
  * Entity representing a detailed sleep log
- * Path: mental-health-service/src/main/java/com/neuralbalance/mentalhealth/entity/SleepLog.java
  */
 @Entity
 @Table(name = "sleep_logs")
@@ -33,16 +35,16 @@ public class SleepLog {
     @NotNull(message = "Sleep date is required")
     private LocalDate sleepDate;
 
-    // ========== SLEEP TIMING ==========
+    // ========== SLEEP TIMING (LocalTime - HH:mm format) ==========
 
     @Column(name = "bedtime")
-    private LocalDateTime bedtime;
+    private LocalTime bedtime;
 
     @Column(name = "wake_time")
-    private LocalDateTime wakeTime;
+    private LocalTime wakeTime;
 
     @Column(name = "fell_asleep_time")
-    private LocalDateTime fellAsleepTime;
+    private LocalTime fellAsleepTime;
 
     // ========== DURATION ==========
 
@@ -176,25 +178,63 @@ public class SleepLog {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
 
-        // Calculate sleep efficiency if not set
-        if (sleepEfficiency == null && actualSleepHours != null && totalHours != null
-                && totalHours.compareTo(BigDecimal.ZERO) > 0) {
-            sleepEfficiency = actualSleepHours
-                    .multiply(BigDecimal.valueOf(100))
-                    .divide(totalHours, 2, BigDecimal.ROUND_HALF_UP);
-        }
+        calculateTotalHours();
+
+        // Calculate sleep efficiency
+        calculateSleepEfficiency();
     }
 
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
 
+        calculateTotalHours();
+
         // Recalculate sleep efficiency
-        if (actualSleepHours != null && totalHours != null
+        calculateSleepEfficiency();
+    }
+
+    /**
+     * If totalHours is NOT provided by user BUT bedtime and wakeTime are,
+     * calculate it automatically
+     */
+    private void calculateTotalHours() {
+        // If user already provided totalHours, don't touch it
+        if (totalHours != null && totalHours.compareTo(BigDecimal.ZERO) > 0) {
+            return;
+        }
+
+        // If both bedtime and wakeTime are provided, calculate
+        if (bedtime != null && wakeTime != null) {
+            long minutes;
+
+            // Handle overnight sleep (bedtime before midnight, wake after midnight)
+            if (wakeTime.isBefore(bedtime) || wakeTime.equals(bedtime)) {
+                // Overnight: 23:00 -> 07:00 next day
+                // Calculate duration across midnight
+                LocalTime midnight = LocalTime.MIDNIGHT;
+                long minutesBeforeMidnight = Duration.between(bedtime, midnight).toMinutes();
+                long minutesAfterMidnight = Duration.between(midnight, wakeTime).toMinutes();
+                minutes = minutesBeforeMidnight + minutesAfterMidnight;
+            } else {
+                // Same day (unusual): 08:00 -> 10:00 (nap)
+                minutes = Duration.between(bedtime, wakeTime).toMinutes();
+            }
+
+            double hours = minutes / 60.0;
+            totalHours = BigDecimal.valueOf(hours).setScale(2, RoundingMode.HALF_UP);
+        }
+    }
+
+    /**
+     * Calculate sleep efficiency
+     */
+    private void calculateSleepEfficiency() {
+        if (sleepEfficiency == null && actualSleepHours != null && totalHours != null
                 && totalHours.compareTo(BigDecimal.ZERO) > 0) {
             sleepEfficiency = actualSleepHours
                     .multiply(BigDecimal.valueOf(100))
-                    .divide(totalHours, 2, BigDecimal.ROUND_HALF_UP);
+                    .divide(totalHours, 2, RoundingMode.HALF_UP);
         }
     }
 

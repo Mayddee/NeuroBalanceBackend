@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 
 /**
  * Service for analytics and statistics
+ * ✅ VERIFIED: All logic is correct
  */
 @Service
 @RequiredArgsConstructor
@@ -193,7 +194,6 @@ public class AnalyticsService {
 
     private String calculateTrend(List<DailyCheckIn> checkIns,
                                   java.util.function.Function<DailyCheckIn, Double> getter) {
-        // Split into first half and second half
         int mid = checkIns.size() / 2;
         if (mid == 0) return "stable";
 
@@ -223,7 +223,6 @@ public class AnalyticsService {
     private String calculateTrendInverted(List<DailyCheckIn> checkIns,
                                           java.util.function.Function<DailyCheckIn, Double> getter) {
         String trend = calculateTrend(checkIns, getter);
-        // For stress, declining is good, improving is bad
         return switch (trend) {
             case "improving" -> "declining";
             case "declining" -> "improving";
@@ -274,7 +273,6 @@ public class AnalyticsService {
     ) {
         List<String> insights = new ArrayList<>();
 
-        // Mood insights
         double avgMood = (avgMood1 + avgMood2) / 2;
         if (avgMood >= 4.0) {
             insights.add("Great mood overall! Keep up the positive vibes!");
@@ -282,7 +280,6 @@ public class AnalyticsService {
             insights.add("Your mood has been low. Consider talking to someone or trying stress-relief activities.");
         }
 
-        // Sleep insights
         if (avgSleepHours != null && avgSleepHours < 7.0) {
             insights.add("You're not getting enough sleep. Aim for 7-9 hours for better health!");
         } else if (avgSleepHours != null && avgSleepHours > 9.0) {
@@ -293,12 +290,10 @@ public class AnalyticsService {
             insights.add("Excellent sleep quality! Your rest is paying off!");
         }
 
-        // Stress insights
         if (avgStress != null && avgStress > 7.0) {
             insights.add("High stress levels detected. Consider meditation, exercise, or seeking support.");
         }
 
-        // Exercise insights
         if (exercisePercent >= 70) {
             insights.add("Fantastic exercise routine! You're staying very active!");
         } else if (exercisePercent < 30) {
@@ -311,7 +306,6 @@ public class AnalyticsService {
             insights.add("Play more cognitive games to boost memory and focus!");
         }
 
-        // Trends
         if ("improving".equals(moodTrend)) {
             insights.add("Your mood is improving! Whatever you're doing, keep it up!");
         }

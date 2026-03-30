@@ -1,3 +1,4 @@
+
 package org.example.nbcheckinservice.config;
 
 import io.jsonwebtoken.Claims;
@@ -20,10 +21,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-/**
- * JWT Authentication Filter
- * Validates JWT tokens and sets authentication in SecurityContext
- */
 @Component
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -44,40 +41,34 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (token != null && validateToken(token)) {
                 Long userId = getUserIdFromToken(token);
 
-                // Set authentication in security context
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(
-                                userId,  // Principal (will be available as @AuthenticationPrincipal)
-                                null,
-                                List.of(new SimpleGrantedAuthority("ROLE_USER"))
-                        );
+                if (userId != null) {
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(
+                                    userId,
+                                    null,
+                                    List.of(new SimpleGrantedAuthority("ROLE_USER"))
+                            );
 
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-                log.debug("Authenticated user ID: {}", userId);
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                    request.setAttribute("userId", userId);
+                }
             }
         } catch (Exception e) {
-            log.error("Cannot set user authentication: {}", e.getMessage());
+            log.error("JWT authentication error: {}", e.getMessage());
         }
 
         filterChain.doFilter(request, response);
     }
 
-    /**
-     * Extract JWT token from Authorization header
-     */
     private String extractToken(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
 
         if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
             return bearerToken.substring(7);
         }
-
         return null;
     }
 
-    /**
-     * Validate JWT token
-     */
     private boolean validateToken(String token) {
         try {
             SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
@@ -94,18 +85,29 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
     }
 
-    /**
-     * Extract user ID from JWT token
-     */
-    private Long getUserIdFromToken(String token) {
-        SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
+private Long getUserIdFromToken(String token) {
+    SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
 
-        Claims claims = Jwts.parser()
-                .verifyWith(key)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
+    Claims claims = Jwts.parser()
+            .verifyWith(key)
+            .build()
+            .parseSignedClaims(token)
+            .getPayload();
 
-        return claims.get("userId", Long.class);
+    // Достаем именно "id", так как auth-service кладет его туда
+    Object userIdObj = claims.get("id");
+
+    if (userIdObj == null) {
+        log.error("JWT claim 'id' is missing. Available claims: {}", claims.keySet());
+        throw new RuntimeException("User ID is missing in token");
     }
+
+    try {
+        // Безопасное приведение к Long (работает и для Integer, и для Long)
+        return Long.valueOf(userIdObj.toString());
+    } catch (NumberFormatException e) {
+        log.error("Invalid userId format in token: {}", userIdObj);
+        throw new RuntimeException("Invalid userId format");
+    }
+}
 }

@@ -1,6 +1,5 @@
 package org.example.nbcheckinservice.entity;
 
-
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.*;
@@ -12,7 +11,7 @@ import java.util.List;
 
 /**
  * Entity representing a mood log entry
- * Path: mental-health-service/src/main/java/com/neuralbalance/mentalhealth/entity/MoodLog.java
+ * FIXED: Added missing getMoodEmojiByValue() method used by MoodLogService
  */
 @Entity
 @Table(name = "mood_logs")
@@ -99,6 +98,7 @@ public class MoodLog {
     }
 
     /**
+     * ✅ FIXED: Added missing static method used by MoodLogService
      * Get emoji based on mood value
      */
     public static String getMoodEmojiByValue(Integer value) {

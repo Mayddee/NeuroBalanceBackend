@@ -1,5 +1,6 @@
 package org.example.nbcheckinservice.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,7 +14,6 @@ import org.example.nbcheckinservice.service.StreakService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -22,6 +22,7 @@ import java.util.Map;
 
 /**
  * REST Controller for Daily Check-in operations
+ * FIXED: Extracts userId from request attribute (set by AuthFilter)
  */
 @RestController
 @RequestMapping("/checkins")
@@ -34,17 +35,25 @@ public class DailyCheckInController {
     private final AnalyticsService analyticsService;
 
     /**
+     * Extract userId from request attribute (set by AuthFilter)
+     */
+    private Long getUserId(HttpServletRequest request) {
+        return (Long) request.getAttribute("userId");
+    }
+
+    /**
      * Create a new check-in for today
      * POST /api/v1/checkins
      */
     @PostMapping
     public ResponseEntity<CheckInResponse> createCheckIn(
-            @AuthenticationPrincipal Long userId,
-            @Valid @RequestBody CheckInRequest request
+            HttpServletRequest request,
+            @Valid @RequestBody CheckInRequest checkInRequest
     ) {
+        Long userId = getUserId(request);
         log.info("POST /checkins - User {} creating check-in", userId);
 
-        CheckInResponse response = checkInService.createCheckIn(userId, request);
+        CheckInResponse response = checkInService.createCheckIn(userId, checkInRequest);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -54,9 +63,8 @@ public class DailyCheckInController {
      * GET /api/v1/checkins/today
      */
     @GetMapping("/today")
-    public ResponseEntity<CheckInResponse> getTodayCheckIn(
-            @AuthenticationPrincipal Long userId
-    ) {
+    public ResponseEntity<CheckInResponse> getTodayCheckIn(HttpServletRequest request) {
+        Long userId = getUserId(request);
         log.info("GET /checkins/today - User {}", userId);
 
         CheckInResponse response = checkInService.getTodayCheckIn(userId);
@@ -69,9 +77,8 @@ public class DailyCheckInController {
      * GET /api/v1/checkins/today/exists
      */
     @GetMapping("/today/exists")
-    public ResponseEntity<Map<String, Boolean>> hasCheckedInToday(
-            @AuthenticationPrincipal Long userId
-    ) {
+    public ResponseEntity<Map<String, Boolean>> hasCheckedInToday(HttpServletRequest request) {
+        Long userId = getUserId(request);
         log.info("GET /checkins/today/exists - User {}", userId);
 
         boolean exists = checkInService.hasCheckedInToday(userId);
@@ -88,9 +95,10 @@ public class DailyCheckInController {
      */
     @GetMapping("/{date}")
     public ResponseEntity<CheckInResponse> getCheckInByDate(
-            @AuthenticationPrincipal Long userId,
+            HttpServletRequest request,
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
+        Long userId = getUserId(request);
         log.info("GET /checkins/{} - User {}", date, userId);
 
         CheckInResponse response = checkInService.getCheckIn(userId, date);
@@ -104,13 +112,14 @@ public class DailyCheckInController {
      */
     @PutMapping("/{date}")
     public ResponseEntity<CheckInResponse> updateCheckIn(
-            @AuthenticationPrincipal Long userId,
+            HttpServletRequest request,
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-            @Valid @RequestBody CheckInRequest request
+            @Valid @RequestBody CheckInRequest checkInRequest
     ) {
+        Long userId = getUserId(request);
         log.info("PUT /checkins/{} - User {}", date, userId);
 
-        CheckInResponse response = checkInService.updateCheckIn(userId, date, request);
+        CheckInResponse response = checkInService.updateCheckIn(userId, date, checkInRequest);
 
         return ResponseEntity.ok(response);
     }
@@ -121,9 +130,10 @@ public class DailyCheckInController {
      */
     @DeleteMapping("/{date}")
     public ResponseEntity<Map<String, String>> deleteCheckIn(
-            @AuthenticationPrincipal Long userId,
+            HttpServletRequest request,
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
+        Long userId = getUserId(request);
         log.info("DELETE /checkins/{} - User {}", date, userId);
 
         checkInService.deleteCheckIn(userId, date);
@@ -139,9 +149,8 @@ public class DailyCheckInController {
      * GET /api/v1/checkins/recent
      */
     @GetMapping("/recent")
-    public ResponseEntity<List<CheckInResponse>> getRecentCheckIns(
-            @AuthenticationPrincipal Long userId
-    ) {
+    public ResponseEntity<List<CheckInResponse>> getRecentCheckIns(HttpServletRequest request) {
+        Long userId = getUserId(request);
         log.info("GET /checkins/recent - User {}", userId);
 
         List<CheckInResponse> checkIns = checkInService.getRecentCheckIns(userId);
@@ -155,10 +164,11 @@ public class DailyCheckInController {
      */
     @GetMapping
     public ResponseEntity<List<CheckInResponse>> getCheckInsInRange(
-            @AuthenticationPrincipal Long userId,
+            HttpServletRequest request,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
     ) {
+        Long userId = getUserId(request);
         log.info("GET /checkins?startDate={}&endDate={} - User {}",
                 startDate, endDate, userId);
 
@@ -170,32 +180,12 @@ public class DailyCheckInController {
     }
 
     /**
-     * Mark cognitive game as played for today
-     * POST /api/v1/checkins/cognitive-game
-     */
-    @PostMapping("/cognitive-game")
-    public ResponseEntity<Map<String, String>> markCognitiveGamePlayed(
-            @AuthenticationPrincipal Long userId
-    ) {
-        log.info("POST /checkins/cognitive-game - User {}", userId);
-
-        checkInService.markCognitiveGamePlayed(userId, LocalDate.now());
-
-        return ResponseEntity.ok(Map.of(
-                "message", "Cognitive game marked as played",
-                "date", LocalDate.now().toString()
-        ));
-    }
-
-
-    /**
      * Get user's streak information
      * GET /api/v1/checkins/streak
      */
     @GetMapping("/streak")
-    public ResponseEntity<StreakResponse> getStreak(
-            @AuthenticationPrincipal Long userId
-    ) {
+    public ResponseEntity<StreakResponse> getStreak(HttpServletRequest request) {
+        Long userId = getUserId(request);
         log.info("GET /checkins/streak - User {}", userId);
 
         StreakResponse response = streakService.getStreakResponse(userId);
@@ -208,9 +198,8 @@ public class DailyCheckInController {
      * POST /api/v1/checkins/streak/recalculate
      */
     @PostMapping("/streak/recalculate")
-    public ResponseEntity<StreakResponse> recalculateStreak(
-            @AuthenticationPrincipal Long userId
-    ) {
+    public ResponseEntity<StreakResponse> recalculateStreak(HttpServletRequest request) {
+        Long userId = getUserId(request);
         log.info("POST /checkins/streak/recalculate - User {}", userId);
 
         streakService.recalculateStreak(userId);
@@ -219,15 +208,13 @@ public class DailyCheckInController {
         return ResponseEntity.ok(response);
     }
 
-
     /**
      * Get weekly statistics (last 7 days)
      * GET /api/v1/checkins/stats/weekly
      */
     @GetMapping("/stats/weekly")
-    public ResponseEntity<CheckInStatsResponse> getWeeklyStats(
-            @AuthenticationPrincipal Long userId
-    ) {
+    public ResponseEntity<CheckInStatsResponse> getWeeklyStats(HttpServletRequest request) {
+        Long userId = getUserId(request);
         log.info("GET /checkins/stats/weekly - User {}", userId);
 
         CheckInStatsResponse stats = analyticsService.getWeeklyStats(userId);
@@ -240,9 +227,8 @@ public class DailyCheckInController {
      * GET /api/v1/checkins/stats/monthly
      */
     @GetMapping("/stats/monthly")
-    public ResponseEntity<CheckInStatsResponse> getMonthlyStats(
-            @AuthenticationPrincipal Long userId
-    ) {
+    public ResponseEntity<CheckInStatsResponse> getMonthlyStats(HttpServletRequest request) {
+        Long userId = getUserId(request);
         log.info("GET /checkins/stats/monthly - User {}", userId);
 
         CheckInStatsResponse stats = analyticsService.getMonthlyStats(userId);
@@ -256,10 +242,11 @@ public class DailyCheckInController {
      */
     @GetMapping("/stats")
     public ResponseEntity<CheckInStatsResponse> getCustomStats(
-            @AuthenticationPrincipal Long userId,
+            HttpServletRequest request,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
     ) {
+        Long userId = getUserId(request);
         log.info("GET /checkins/stats?startDate={}&endDate={} - User {}",
                 startDate, endDate, userId);
 
@@ -267,7 +254,6 @@ public class DailyCheckInController {
 
         return ResponseEntity.ok(stats);
     }
-
 
     /**
      * Health check endpoint

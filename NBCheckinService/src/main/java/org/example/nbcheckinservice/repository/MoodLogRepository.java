@@ -8,14 +8,14 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
-
+import java.util.Optional; // Не забудь импорт!
 
 @Repository
 public interface MoodLogRepository extends JpaRepository<MoodLog, Long> {
 
+    Optional<MoodLog> findByIdAndUserId(Long id, Long userId);
 
     List<MoodLog> findByUserIdOrderByLogTimestampDesc(Long userId);
-
 
     List<MoodLog> findByUserIdAndLogTimestampBetweenOrderByLogTimestampDesc(
             Long userId,
@@ -23,15 +23,11 @@ public interface MoodLogRepository extends JpaRepository<MoodLog, Long> {
             LocalDateTime endTime
     );
 
-
     List<MoodLog> findTop20ByUserIdOrderByLogTimestampDesc(Long userId);
-
 
     long countByUserId(Long userId);
 
-
     List<MoodLog> findByUserIdAndMoodValue(Long userId, Integer moodValue);
-
 
     @Query("SELECT AVG(m.moodValue) FROM MoodLog m " +
             "WHERE m.userId = :userId " +
@@ -41,7 +37,6 @@ public interface MoodLogRepository extends JpaRepository<MoodLog, Long> {
             @Param("startTime") LocalDateTime startTime,
             @Param("endTime") LocalDateTime endTime
     );
-
 
     @Query("SELECT COUNT(m) FROM MoodLog m " +
             "WHERE m.userId = :userId " +
@@ -59,5 +54,6 @@ public interface MoodLogRepository extends JpaRepository<MoodLog, Long> {
      */
     @Query("SELECT m FROM MoodLog m JOIN m.triggers t WHERE m.userId = :userId AND t = :trigger ORDER BY m.logTimestamp DESC")
     List<MoodLog> findByUserIdAndTrigger(@Param("userId") Long userId, @Param("trigger") String trigger);
+
     void deleteByLogTimestampBefore(LocalDateTime timestamp);
 }

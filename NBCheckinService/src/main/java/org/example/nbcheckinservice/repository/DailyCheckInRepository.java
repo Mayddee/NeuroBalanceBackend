@@ -122,6 +122,7 @@ public interface DailyCheckInRepository extends JpaRepository<DailyCheckIn, Long
             @Param("endDate") LocalDate endDate
     );
 
+    List<DailyCheckIn> findByUserIdOrderByCheckInDateAsc(Long userId);
     /**
      * Count days user played cognitive games
      */

@@ -51,6 +51,9 @@ services:
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: ${MAIL_STARTTLS_ENABLE}
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_REQUIRED: ${MAIL_STARTTLS_REQUIRED}
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_TRUST: ${MAIL_SSL_TRUST}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
+      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER}
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_JPA_SHOW_SQL: "true"
     ports:
@@ -86,10 +89,8 @@ services:
       dockerfile: Dockerfile
     container_name: nb-checkin-service
     depends_on:
-      postgres-checkin:
-        condition: service_healthy
-      nbauthservice:
-        condition: service_started
+      - postgres-checkin
+      - nbauthservice
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-checkin:5432/${CHECKIN_DB_NAME}
       SPRING_DATASOURCE_USERNAME: ${CHECKIN_DB_USER}

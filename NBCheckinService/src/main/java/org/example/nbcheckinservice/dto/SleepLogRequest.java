@@ -6,11 +6,11 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 /**
  * Request DTO for creating/updating sleep log
- * Path: mental-health-service/src/main/java/com/neuralbalance/mentalhealth/dto/sleep/SleepLogRequest.java
+ * ✅ FIXED: Changed bedtime, wakeTime, fellAsleepTime to LocalTime with HH:mm format
  */
 @Data
 @NoArgsConstructor
@@ -21,16 +21,16 @@ public class SleepLogRequest {
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate sleepDate; // Optional, defaults to today
 
-    // ========== TIMING ==========
+    // ========== TIMING (LocalTime - HH:mm format) ==========
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime bedtime;
+    @JsonFormat(pattern = "HH:mm")
+    private LocalTime bedtime;
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime wakeTime;
+    @JsonFormat(pattern = "HH:mm")
+    private LocalTime wakeTime;
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime fellAsleepTime;
+    @JsonFormat(pattern = "HH:mm")
+    private LocalTime fellAsleepTime;
 
     // ========== DURATION ==========
 
