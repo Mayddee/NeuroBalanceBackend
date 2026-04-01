@@ -20,6 +20,10 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
+/**
+ * JWT Authentication Filter
+ *  Extracts userId from JWT token (claim "id" from NBAuthService)
+ */
 @Component
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -40,20 +44,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (token != null && validateToken(token)) {
                 Long userId = getUserIdFromToken(token);
 
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(
-                                userId,
-                                null,
-                                List.of(new SimpleGrantedAuthority("ROLE_USER"))
-                        );
+                if (userId != null) {
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(
+                                    userId,
+                                    null,
+                                    List.of(new SimpleGrantedAuthority("ROLE_USER"))
+                            );
 
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-                request.setAttribute("userId", userId);
-                log.debug("Authenticated user ID: {}", userId);
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+
+                    request.setAttribute("userId", userId);
+
+                    log.debug("Authenticated user ID: {}", userId);
+                }
             }
-
         } catch (Exception e) {
-            log.error("Cannot set user authentication: {}", e.getMessage());
+            log.error("JWT authentication error: {}", e.getMessage());
         }
 
         filterChain.doFilter(request, response);
@@ -65,7 +72,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
             return bearerToken.substring(7);
         }
-
         return null;
     }
 
@@ -79,13 +85,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     .parseSignedClaims(token);
 
             return true;
-
         } catch (Exception e) {
             log.error("JWT validation error: {}", e.getMessage());
             return false;
         }
     }
 
+    /**
+     *  Extract userId from JWT claim "id" (NBAuthService uses "id", NOT "userId")
+     */
     private Long getUserIdFromToken(String token) {
         SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
 
@@ -95,6 +103,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 .parseSignedClaims(token)
                 .getPayload();
 
-        return claims.get("userId", Long.class);
+        Object userIdObj = claims.get("id");
+
+        if (userIdObj == null) {
+            log.error("JWT claim 'id' is missing. Available claims: {}", claims.keySet());
+            throw new RuntimeException("User ID is missing in token");
+        }
+
+        try {
+            // Safe conversion to Long (works for both Integer and Long)
+            return Long.valueOf(userIdObj.toString());
+        } catch (NumberFormatException e) {
+            log.error("Invalid userId format in token: {}", userIdObj);
+            throw new RuntimeException("Invalid userId format");
+        }
     }
 }

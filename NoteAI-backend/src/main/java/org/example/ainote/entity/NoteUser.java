@@ -6,28 +6,31 @@ import lombok.Data;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * NoteUser entity
+ * Stores local user data for note ownership tracking
+ */
 @Entity
 @Data
-@Table(name = "users")
-public class User {
+@Table(name = "note_users")
+public class NoteUser {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
-    private Long id;
+    @Column(name = "user_id")
+    private Long userId;
 
-    @Column(name = "name")
-    private String name;
+    @Column(name = "username")
+    private String username;
 
     @Column(name = "email")
     private String email;
 
-    @Column(name = "username", unique = true, nullable = false)
-    private String username;
+    @Column(name = "name")
+    private String name;
 
     @OneToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     @JoinTable(
-            name = "users_notes",
+            name = "note_users_notes",
             joinColumns = @JoinColumn(name = "user_id"),
             inverseJoinColumns = @JoinColumn(name = "note_id")
     )

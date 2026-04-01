@@ -1,6 +1,5 @@
 package org.example.ainote.config;
 
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,6 +14,9 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 
+/**
+ * Security Configuration for Note-Backend
+ */
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
@@ -27,6 +29,10 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
+                .httpBasic(httpBasic -> httpBasic.disable())
+                .formLogin(formLogin -> formLogin.disable())
+
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
@@ -35,7 +41,9 @@ public class SecurityConfig {
                                 "/notes/health",
                                 "/actuator/**",
                                 "/swagger-ui/**",
-                                "/v3/api-docs/**"
+                                "/swagger-ui.html",
+                                "/v3/api-docs/**",
+                                "/api/chat/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

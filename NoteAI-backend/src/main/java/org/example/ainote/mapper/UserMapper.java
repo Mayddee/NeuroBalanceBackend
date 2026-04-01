@@ -1,15 +1,16 @@
 package org.example.ainote.mapper;
 
 import org.example.ainote.dto.UserDTO;
-import org.example.ainote.entity.User;
+import org.example.ainote.entity.NoteUser;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
 @Mapper(componentModel = "spring")
 public interface UserMapper {
 
-    UserDTO toDto(User user);
+    UserDTO toDto(NoteUser user);
 
     @Mapping(target = "notes", expression = "java(new java.util.ArrayList<>())")
-    User toEntity(UserDTO userDTO);
+    @Mapping(target = "userId", source = "id")
+    NoteUser toEntity(UserDTO userDTO);
 }
