@@ -38,12 +38,13 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
-                                "/notes/health",
-                                "/actuator/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/v3/api-docs/**",
-                                "/api/chat/**"
+                                "/swagger-resources/**",
+                                "/webjars/**",
+                                "/actuator/**",
+                                "/api/chat/**"  // AI endpoints
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

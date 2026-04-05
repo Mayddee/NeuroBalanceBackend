@@ -11,10 +11,15 @@ import java.util.Optional;
 
 @Repository
 public interface NoteRepository extends JpaRepository<Note, Long> {
+
     Optional<Note> findByTitle(String title);
 
-
-    @Query(value="SELECT n.* FROM notes n JOIN users_notes un ON n.id = un.note_id WHERE un.user_id = :userId ", nativeQuery = true)
+    /**
+     * Find all notes by user ID
+     */
+    @Query(value = "SELECT n.* FROM notes n " +
+            "JOIN note_users_notes un ON n.id = un.note_id " +
+            "WHERE un.user_id = :userId",
+            nativeQuery = true)
     Optional<List<Note>> findAllByUserId(@Param("userId") Long userId);
-
 }

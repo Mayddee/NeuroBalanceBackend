@@ -13,7 +13,6 @@ import java.util.List;
 
 /**
  * Service for managing notes
- * ✅ UPDATED: Uses NoteUser instead of User
  */
 @Service
 @RequiredArgsConstructor
@@ -33,7 +32,6 @@ public class NoteService {
     public Note createNoteForUser(Long userId, String title, String content) {
         log.info("Creating note for user {}", userId);
 
-        // ✅ Ensure user exists (auto-create if needed)
         NoteUser user = noteUserService.getOrCreate(userId);
 
         Note note = new Note();
@@ -85,20 +83,22 @@ public class NoteService {
     }
 
     @Transactional
-    public Note updateNote(Long userId, Note note) {
-        log.info("Updating note {} for user {}", note.getId(), userId);
+    public Note updateNote(Long userId, Note updatedNote) {
+        log.info("Updating note {} for user {}", updatedNote.getId(), userId);
 
-        if (!noteUserService.isNoteOwner(note.getId(), userId)) {
+        if (!noteUserService.isNoteOwner(updatedNote.getId(), userId)) {
             throw new EntityNotFoundException("Access denied to update note");
         }
 
-        if (!noteRepository.findById(note.getId()).isPresent()) {
-            throw new IllegalArgumentException("Note does not exist!");
-        }
+        Note existingNote = noteRepository.findById(updatedNote.getId())
+                .orElseThrow(() -> new EntityNotFoundException("Note does not exist!"));
 
-        Note updated = noteRepository.save(note);
-        log.info("Note {} updated successfully", note.getId());
+        existingNote.setTitle(updatedNote.getTitle());
+        existingNote.setContent(updatedNote.getContent());
 
-        return updated;
+        Note saved = noteRepository.save(existingNote);
+        log.info("Note {} updated successfully", updatedNote.getId());
+
+        return saved;
     }
 }

@@ -9,11 +9,11 @@ import org.example.nbauthservice.dto.validation.OnUpdate;
 import org.hibernate.validator.constraints.Length;
 
 @Data
-@Schema(description="User DTO")
+@Schema(description = "User DTO")
 public class UserDTO {
 
     @Schema(description = "Id")
-    @NotNull(message = "Id can not be null",groups = OnUpdate.class)
+    @NotNull(message = "Id can not be null", groups = OnUpdate.class)
     private Long id;
 
     @Schema(description = "Name")
@@ -21,12 +21,10 @@ public class UserDTO {
     @Length(max = 255, message = "Name length can not be smaller than 255 symbols.", groups = {OnCreate.class, OnUpdate.class})
     private String name;
 
-
     @Schema(description = "Email")
     @NotNull(message = "Email can not be null", groups = OnCreate.class)
     @Length(max = 255, message = "Email length can not be smaller than 255 symbols.", groups = {OnCreate.class, OnUpdate.class})
     private String email;
-
 
     @Schema(description = "Username")
     @NotNull(message = " Username can not be null", groups = {OnCreate.class, OnUpdate.class})
@@ -37,4 +35,19 @@ public class UserDTO {
     @NotNull(message = " Password can not be null", groups = {OnCreate.class, OnUpdate.class})
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
+
+    @Schema(description = "Phone")
+    private String phone;
+
+    @Schema(description = "Email verified")
+    private Boolean emailVerified;
+
+    @Schema(description = "Phone verified")
+    private Boolean phoneVerified;
+
+    @Schema(description = "Is onboarded")
+    private Boolean isOnboarded;
+
+    @Schema(description = "Onboarding data")
+    private OnboardingDTO onboarding;
 }

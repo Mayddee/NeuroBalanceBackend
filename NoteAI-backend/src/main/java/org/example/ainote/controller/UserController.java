@@ -12,9 +12,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * User Controller - Simplified
- * ✅ REMOVED: update, getById, deleteById (users managed by NBAuthService)
- * ✅ KEPT: createNote (for creating notes)
+ * User Controller - Create notes for users
  */
 @RestController
 @RequestMapping("/api/v1/users")
@@ -34,10 +32,14 @@ public class UserController {
     public NoteDTO createNote(HttpServletRequest request,
                               @Validated(OnCreate.class) @RequestBody NoteDTO noteDTO) {
         Long userId = (Long) request.getAttribute("userId");
-        log.info("POST /users/notes - User {} creating note", userId);
+        log.info("POST /users/notes - User {} creating note: {}", userId, noteDTO.getTitle());
 
-        Note note = noteMapper.toEntity(noteDTO);
-        Note createdNote = noteService.createNoteForUser(userId, note.getTitle(), note.getContent());
+        Note createdNote = noteService.createNoteForUser(
+                userId,
+                noteDTO.getTitle(),
+                noteDTO.getContent()
+        );
+
         return noteMapper.toDto(createdNote);
     }
 }

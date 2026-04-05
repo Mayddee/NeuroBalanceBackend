@@ -12,22 +12,23 @@ import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDateTime;
 
-
+/**
+ * Note DTO
+ */
 @Data
-@Schema(description="Note DTO")
+@Schema(description = "Note DTO")
 public class NoteDTO {
+
     @Schema(description = "Id")
-    @NotNull(message = "Id can not be null",groups = OnUpdate.class)
     private Long id;
 
     @Schema(description = "Title")
-    @NotNull(message = "Title can not be null", groups ={OnCreate.class, OnUpdate.class})
-    @Length(max = 255, message = "Title length can not be smaller than 255 symbols.", groups = {OnCreate.class, OnUpdate.class})
+    @NotNull(message = "Title cannot be null", groups = {OnCreate.class, OnUpdate.class})
+    @Length(max = 500, message = "Title length cannot exceed 500 characters",
+            groups = {OnCreate.class, OnUpdate.class})
     private String title;
 
-
     @Schema(description = "Content")
-    @Length(max = 255, message = "Content length can not be smaller than 255 symbols.", groups = {OnCreate.class, OnUpdate.class})
     private String content;
 
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)

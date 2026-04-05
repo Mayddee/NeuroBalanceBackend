@@ -16,7 +16,6 @@ import java.util.stream.Collectors;
 
 /**
  * REST Controller for Notes
- * ✅ NO CHANGES NEEDED - Already correctly extracts userId from request
  */
 @RestController
 @RequestMapping("/api/v1/notes")
@@ -69,13 +68,16 @@ public class NoteController {
 
     /**
      * Update note
-     * PUT /api/v1/notes
+     * PUT /api/v1/notes/{id}
      */
-    @PutMapping
+    @PutMapping("/{id}")
     public NoteDTO updateNote(HttpServletRequest request,
+                              @PathVariable Long id,
                               @Validated(OnUpdate.class) @RequestBody NoteDTO note) {
         Long userId = (Long) request.getAttribute("userId");
-        log.info("PUT /notes - User {} updating note {}", userId, note.getId());
+        log.info("PUT /notes/{} - User {} updating note", id, userId);
+
+        note.setId(id);
 
         Note noteEntity = noteMapper.toEntity(note);
         Note updatedNote = noteService.updateNote(userId, noteEntity);

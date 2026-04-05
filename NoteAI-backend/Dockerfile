@@ -5,7 +5,6 @@ WORKDIR /app
 COPY pom.xml .
 COPY src ./src
 
-# Пропускаем тесты при сборке
 RUN mvn clean package -DskipTests
 
 FROM eclipse-temurin:17-jdk
