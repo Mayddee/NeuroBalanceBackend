@@ -47,10 +47,15 @@ public class ApplicationConfig {
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(request -> {
                     CorsConfiguration config = new CorsConfiguration();
-                    config.setAllowedOrigins(List.of("http://localhost:4200"));
-                    config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+
+                    config.setAllowedOriginPatterns(List.of("*"));  // Разрешить все origins
+
+                    config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
                     config.setAllowedHeaders(List.of("*"));
                     config.setAllowCredentials(true);
+                    config.setExposedHeaders(List.of("Authorization", "Content-Type"));
+                    config.setMaxAge(3600L);  // Cache preflight requests for 1 hour
+
                     return config;
                 }))
                 .authorizeHttpRequests(auth -> auth
