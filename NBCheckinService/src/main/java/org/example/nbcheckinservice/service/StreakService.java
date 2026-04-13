@@ -7,26 +7,29 @@ import org.example.nbcheckinservice.entity.DailyCheckIn;
 import org.example.nbcheckinservice.entity.UserStreak;
 import org.example.nbcheckinservice.repository.DailyCheckInRepository;
 import org.example.nbcheckinservice.repository.UserStreakRepository;
+import org.hibernate.validator.internal.util.stereotypes.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 /**
  * Service for managing user streaks and XP
- * ✅ VERIFIED: All logic is correct
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class StreakService {
-
     private final UserStreakRepository streakRepository;
     private final DailyCheckInRepository checkInRepository;
+    @Lazy
+    private final RewardService rewardService; // Добавили связь с наградами
 
     private static final int BASE_XP_PER_CHECKIN = 10;
+    private static final ZoneId ALMATY_ZONE = ZoneId.of("Asia/Almaty");
 
     @Transactional
     public UserStreak getOrCreateStreak(Long userId) {
@@ -36,68 +39,57 @@ public class StreakService {
 
     @Transactional
     public UserStreak updateStreak(Long userId, LocalDate checkInDate) {
+        // ВАЖНО: Убедись, что checkInDate передается как LocalDate.now(ZoneId.of("Asia/Almaty"))
+        // из вызывающего сервиса (например, из DailyCheckInService)
         log.info("Updating streak for user {} on date {}", userId, checkInDate);
 
         UserStreak streak = getOrCreateStreak(userId);
         LocalDate lastCheckIn = streak.getLastCheckinDate();
 
         if (lastCheckIn == null) {
-            // First check-in ever
+            // Первый чекин в жизни пользователя
             streak.setCurrentStreak(1);
             streak.setLongestStreak(1);
             streak.setTotalCheckins(1);
             streak.setLastCheckinDate(checkInDate);
-
-            int xpEarned = BASE_XP_PER_CHECKIN;
-            streak.setTotalXpEarned(streak.getTotalXpEarned() + xpEarned);
-
-            log.info("First check-in for user {}, streak started", userId);
+            streak.setTotalXpEarned(streak.getTotalXpEarned() + BASE_XP_PER_CHECKIN);
         } else {
             long daysSinceLastCheckIn = ChronoUnit.DAYS.between(lastCheckIn, checkInDate);
 
             if (daysSinceLastCheckIn == 0) {
-                log.warn("Check-in on same day for user {}, streak not updated", userId);
+                // Если юзер чекинится второй раз за тот же день — ничего не делаем
+                log.info("User {} already checked in today. No streak update.", userId);
                 return streak;
             } else if (daysSinceLastCheckIn == 1) {
-                // Consecutive day! Increase streak
+                // Идеально: чекин на следующий день (стрик продолжается)
                 streak.setCurrentStreak(streak.getCurrentStreak() + 1);
                 streak.setTotalCheckins(streak.getTotalCheckins() + 1);
                 streak.setLastCheckinDate(checkInDate);
 
                 if (streak.getCurrentStreak() > streak.getLongestStreak()) {
                     streak.setLongestStreak(streak.getCurrentStreak());
-                    log.info("New longest streak for user {}: {}",
-                            userId, streak.getCurrentStreak());
                 }
 
-                int baseXp = BASE_XP_PER_CHECKIN;
-                int bonusXp = streak.calculateStreakBonusXP();
-                int totalXp = baseXp + bonusXp;
-
+                // АВТОМАТИКА БАЛЛОВ: Базовые 10 + бонус (50, 100, 300) если сегодня юбилейный день
+                int totalXp = BASE_XP_PER_CHECKIN + streak.calculateStreakBonusXP();
                 streak.setTotalXpEarned(streak.getTotalXpEarned() + totalXp);
 
-                log.info("Streak continued for user {}: {} days, +{} XP",
-                        userId, streak.getCurrentStreak(), totalXp);
-
-                if (bonusXp > 0) {
-                    log.info("🎉 Milestone bonus! User {} earned {} bonus XP", userId, bonusXp);
-                }
             } else {
-                // Streak broken! Reset to 1
-                log.warn("Streak broken for user {}! Was {} days, resetting to 1",
-                        userId, streak.getCurrentStreak());
-
+                // Стрик прерван (прошло 2 дня или больше) — сбрасываем на 1
+                log.warn("Streak broken for user {}! Resetting to 1.", userId);
                 streak.setCurrentStreak(1);
                 streak.setTotalCheckins(streak.getTotalCheckins() + 1);
                 streak.setLastCheckinDate(checkInDate);
-
-                int xpEarned = BASE_XP_PER_CHECKIN;
-                streak.setTotalXpEarned(streak.getTotalXpEarned() + xpEarned);
+                streak.setTotalXpEarned(streak.getTotalXpEarned() + BASE_XP_PER_CHECKIN);
             }
         }
 
         UserStreak savedStreak = streakRepository.save(streak);
-        log.info("Streak updated successfully for user {}", userId);
+
+        // 🔥 ГЛАВНАЯ АВТОМАТИКА: Вызываем RewardService.
+        // Он проверит новый стрейк и, если юзер достиг 7/14/30 дней,
+        // САМ разблокирует соответствующий Badge (Reward) в базе.
+        rewardService.checkAndUnlockRewards(userId);
 
         return savedStreak;
     }
@@ -106,8 +98,9 @@ public class StreakService {
     public StreakResponse getStreakResponse(Long userId) {
         UserStreak streak = getOrCreateStreak(userId);
 
+        // Исправлено время на Алматы
         boolean canCheckinToday = !checkInRepository.existsByUserIdAndCheckInDate(
-                userId, LocalDate.now()
+                userId, LocalDate.now(ALMATY_ZONE)
         );
 
         return StreakResponse.builder()
@@ -124,7 +117,6 @@ public class StreakService {
                 .milestoneBonus(streak.calculateStreakBonusXP())
                 .build();
     }
-
     @Transactional
     public UserStreak recalculateStreak(Long userId) {
         log.info("Recalculating streak for user {}", userId);

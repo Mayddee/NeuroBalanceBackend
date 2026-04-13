@@ -1,0 +1,17 @@
+Sleep_Duration
+Stress_Level
+Daily_Screen_Time
+Exercise_Frequency_Num
+Caffeine_Intake
+Reaction_Time
+Memory_Test_Score
+Age
+Gender_Encoded
+Diet_Non-Vegetarian
+Diet_Vegan
+Diet_Vegetarian
+CFI
+Sleep_Debt
+Memory_Efficiency
+Lifestyle_Balance
+Sleep_Exercise_Interaction

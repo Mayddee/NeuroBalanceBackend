@@ -114,6 +114,30 @@ services:
     restart: unless-stopped
 
   # ===============================
+  # ML SERVICE (НОВЫЙ!)
+  # ===============================
+  ml-service:
+    build:
+      context: ./ml
+      dockerfile: Dockerfile
+    container_name: neural-balance-ml
+    ports:
+      - "5001:5001"
+    environment:
+      PORT: 5001
+    volumes:
+      - ./ml/notebooks/models:/app/notebooks/models:ro
+    networks:
+      - nbauthservice-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5001/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+
+  # ===============================
   # NOTE-AI SERVICE (НОВЫЙ!)
   # ===============================
   postgres-noteai:
@@ -170,3 +194,4 @@ volumes:
 networks:
   nbauthservice-network:
     driver: bridge
+

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -22,6 +23,7 @@ import java.util.stream.Collectors;
 public class AnalyticsService {
 
     private final DailyCheckInRepository checkInRepository;
+    private static final ZoneId ALMATY_ZONE = ZoneId.of("Asia/Almaty");
 
     /**
      * Get comprehensive statistics for user in date range
@@ -141,21 +143,21 @@ public class AnalyticsService {
     }
 
     /**
-     * Get weekly stats (last 7 days)
+     * Get weekly stats (last 7 days) in Almaty timezone
      */
     @Transactional(readOnly = true)
     public CheckInStatsResponse getWeeklyStats(Long userId) {
-        LocalDate endDate = LocalDate.now();
+        LocalDate endDate = LocalDate.now(ALMATY_ZONE);
         LocalDate startDate = endDate.minusDays(6);
         return getStats(userId, startDate, endDate);
     }
 
     /**
-     * Get monthly stats (last 30 days)
+     * Get monthly stats (last 30 days) in Almaty timezone
      */
     @Transactional(readOnly = true)
     public CheckInStatsResponse getMonthlyStats(Long userId) {
-        LocalDate endDate = LocalDate.now();
+        LocalDate endDate = LocalDate.now(ALMATY_ZONE);
         LocalDate startDate = endDate.minusDays(29);
         return getStats(userId, startDate, endDate);
     }

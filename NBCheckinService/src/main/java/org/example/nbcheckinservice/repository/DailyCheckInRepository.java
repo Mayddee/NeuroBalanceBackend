@@ -140,4 +140,5 @@ public interface DailyCheckInRepository extends JpaRepository<DailyCheckIn, Long
      * Delete check-ins older than a certain date
      */
     void deleteByCheckInDateBefore(LocalDate date);
+
 }

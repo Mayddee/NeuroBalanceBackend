@@ -1,0 +1,56 @@
+{
+  "version": "5.0.0 - ULTIMATE",
+  "date": "2026-04-13T11:10:09.387167",
+  "models": {
+    "cognitive_prediction": {
+      "type": "XGBoost Regressor",
+      "features": 17,
+      "test_r2": 0.9989884229853399,
+      "test_rmse": 0.7336812397421031
+    },
+    "cognitive_classification": {
+      "type": "XGBoost Classifier",
+      "classes": [
+        "HIGH",
+        "LOW",
+        "MEDIUM"
+      ],
+      "test_accuracy": 0.9794375
+    },
+    "recommendation_ml": {
+      "type": "CatBoost Regressor",
+      "features": 24,
+      "test_r2": 0.9656417257044232,
+      "test_rmse": 1.8058232378379426
+    }
+  },
+  "features": [
+    "Sleep_Duration",
+    "Stress_Level",
+    "Daily_Screen_Time",
+    "Exercise_Frequency_Num",
+    "Caffeine_Intake",
+    "Reaction_Time",
+    "Memory_Test_Score",
+    "Age",
+    "Gender_Encoded",
+    "Diet_Non-Vegetarian",
+    "Diet_Vegan",
+    "Diet_Vegetarian",
+    "CFI",
+    "Sleep_Debt",
+    "Memory_Efficiency",
+    "Lifestyle_Balance",
+    "Sleep_Exercise_Interaction"
+  ],
+  "recommendation_types": [
+    "SLEEP_INCREASE",
+    "STRESS_DECREASE",
+    "EXERCISE_INCREASE",
+    "SCREEN_DECREASE"
+  ],
+  "deployment": {
+    "flask_port": 5001,
+    "spring_boot_port": 8082
+  }
+}

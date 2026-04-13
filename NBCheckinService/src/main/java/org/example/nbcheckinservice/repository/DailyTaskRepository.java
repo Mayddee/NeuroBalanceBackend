@@ -18,6 +18,6 @@ public interface DailyTaskRepository extends JpaRepository<DailyTask, Long> {
             LocalDate taskDate,
             DailyTask.TaskType taskType
     );
-
+    List<DailyTask> findByUserIdAndTaskDateBetween(Long userId, LocalDate startDate, LocalDate endDate);
     long countByUserIdAndTaskDateAndIsCompletedTrue(Long userId, LocalDate taskDate);
 }

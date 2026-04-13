@@ -10,17 +10,20 @@ import org.example.nbcheckinservice.entity.DailyTask;
 import org.example.nbcheckinservice.entity.UserStreak;
 import org.example.nbcheckinservice.exception.CheckInAlreadyExistsException;
 import org.example.nbcheckinservice.repository.DailyCheckInRepository;
+import org.example.nbcheckinservice.repository.DailyTaskRepository; // Добавлен для нового метода
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
  * Service for managing daily check-ins
- * ✅ VERIFIED: All logic is correct
+ * ✅ VERIFIED: All logic is correct, Timezone: Asia/Almaty
  */
 @Service
 @RequiredArgsConstructor
@@ -30,14 +33,43 @@ public class DailyCheckInService {
     private final DailyCheckInRepository checkInRepository;
     private final StreakService streakService;
     private final UserCharacterService characterService;
-    private final org.example.nbcheckinservice.service.DailyTaskService dailyTaskService;
+    private final DailyTaskService dailyTaskService;
     private final RewardService rewardService;
+    private final DailyTaskRepository taskRepository; // Репозиторий тасок для проверки выполнения всех задач
+
+    private static final ZoneId ALMATY_ZONE = ZoneId.of("Asia/Almaty");
+
+    /**
+     * Возвращает список дат текущего месяца, в которые пользователь выполнил ВСЕ заданные таски.
+     * Полезно для календаря на фронтенде.
+     */
+    @Transactional(readOnly = true)
+    public List<LocalDate> getCompletionDatesInMonth(Long userId, int year, int month) {
+        LocalDate start = LocalDate.of(year, month, 1);
+        LocalDate end = start.withDayOfMonth(start.lengthOfMonth());
+
+        // Получаем все задачи пользователя за этот месяц
+        List<DailyTask> monthlyTasks = taskRepository.findByUserIdAndTaskDateBetween(userId, start, end);
+
+        // Группируем задачи по датам и проверяем, что все задачи в этот день завершены
+        return monthlyTasks.stream()
+                .collect(Collectors.groupingBy(DailyTask::getTaskDate))
+                .entrySet().stream()
+                .filter(entry -> {
+                    List<DailyTask> dailyTasks = entry.getValue();
+                    // Проверяем: список не пуст И все элементы имеют isCompleted = true
+                    return !dailyTasks.isEmpty() && dailyTasks.stream().allMatch(DailyTask::getIsCompleted);
+                })
+                .map(Map.Entry::getKey)
+                .sorted()
+                .collect(Collectors.toList());
+    }
 
     @Transactional
     public CheckInResponse createCheckIn(Long userId, CheckInRequest request) {
         LocalDate checkInDate = request.getCheckInDate() != null
                 ? request.getCheckInDate()
-                : LocalDate.now();
+                : LocalDate.now(ALMATY_ZONE);
 
         log.info("Creating check-in for user {} on date {}", userId, checkInDate);
 
@@ -61,7 +93,7 @@ public class DailyCheckInService {
         log.debug("Character happiness updated based on wellness score: {}", wellnessScore);
 
         dailyTaskService.autoCompleteTask(userId, DailyTask.TaskType.COMPLETE_CHECKIN);
-
+        streakService.updateStreak(userId, LocalDate.now(ZoneId.of("Asia/Almaty")));
         if (request.getSleepHours() != null &&
                 request.getSleepHours().compareTo(new BigDecimal("7.0")) >= 0) {
             dailyTaskService.autoCompleteTask(userId, DailyTask.TaskType.SLEEP_7_HOURS);
@@ -110,12 +142,12 @@ public class DailyCheckInService {
 
     @Transactional(readOnly = true)
     public CheckInResponse getTodayCheckIn(Long userId) {
-        return getCheckIn(userId, LocalDate.now());
+        return getCheckIn(userId, LocalDate.now(ALMATY_ZONE));
     }
 
     @Transactional(readOnly = true)
     public boolean hasCheckedInToday(Long userId) {
-        return checkInRepository.existsByUserIdAndCheckInDate(userId, LocalDate.now());
+        return checkInRepository.existsByUserIdAndCheckInDate(userId, LocalDate.now(ALMATY_ZONE));
     }
 
     @Transactional(readOnly = true)
@@ -141,7 +173,7 @@ public class DailyCheckInService {
 
     @Transactional(readOnly = true)
     public List<CheckInResponse> getRecentCheckIns(Long userId) {
-        LocalDate endDate = LocalDate.now();
+        LocalDate endDate = LocalDate.now(ALMATY_ZONE);
         LocalDate startDate = endDate.minusDays(30);
         return getCheckInsInRange(userId, startDate, endDate);
     }
@@ -274,7 +306,7 @@ public class DailyCheckInService {
                 .createdAt(checkIn.getCreatedAt())
                 .updatedAt(checkIn.getUpdatedAt());
 
-        if (checkIn.getCheckInDate().equals(LocalDate.now())) {
+        if (checkIn.getCheckInDate().equals(LocalDate.now(ALMATY_ZONE))) {
             int bonusXp = streak.calculateStreakBonusXP();
 
             builder.streakInfo(CheckInResponse.StreakInfo.builder()

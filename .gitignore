@@ -32,3 +32,10 @@ build/
 ### VS Code ###
 .vscode/
 .env
+venv/
+__pycache__/
+.ipynb_checkpoints/
+*.csv
+ml/notebooks/*.csv
+ml/__pycache__/
+.DS_Store

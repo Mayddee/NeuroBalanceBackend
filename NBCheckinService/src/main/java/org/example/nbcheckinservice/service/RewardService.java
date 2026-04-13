@@ -6,6 +6,7 @@ import org.example.nbcheckinservice.dto.RewardResponse;
 import org.example.nbcheckinservice.entity.UserReward;
 import org.example.nbcheckinservice.entity.UserStreak;
 import org.example.nbcheckinservice.repository.UserRewardRepository;
+import org.hibernate.validator.internal.util.stereotypes.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +24,8 @@ import java.util.stream.Collectors;
 public class RewardService {
 
     private final UserRewardRepository rewardRepository;
+
+    @Lazy
     private final StreakService streakService;
 
     @Transactional

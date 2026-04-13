@@ -17,12 +17,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 
 /**
  * REST Controller for Daily Check-in operations
- * FIXED: Extracts userId from request attribute (set by AuthFilter)
+ * FIXED: extracts userId from request attribute, Timezone: Asia/Almaty
  */
 @RestController
 @RequestMapping("/checkins")
@@ -34,6 +35,9 @@ public class DailyCheckInController {
     private final StreakService streakService;
     private final AnalyticsService analyticsService;
 
+    // Константа таймзоны
+    private static final ZoneId ALMATY_ZONE = ZoneId.of("Asia/Almaty");
+
     /**
      * Extract userId from request attribute (set by AuthFilter)
      */
@@ -43,7 +47,6 @@ public class DailyCheckInController {
 
     /**
      * Create a new check-in for today
-     * POST /api/v1/checkins
      */
     @PostMapping
     public ResponseEntity<CheckInResponse> createCheckIn(
@@ -52,37 +55,31 @@ public class DailyCheckInController {
     ) {
         Long userId = getUserId(request);
         log.info("POST /checkins - User {} creating check-in", userId);
-
         CheckInResponse response = checkInService.createCheckIn(userId, checkInRequest);
-
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     /**
      * Get today's check-in
-     * GET /api/v1/checkins/today
      */
     @GetMapping("/today")
     public ResponseEntity<CheckInResponse> getTodayCheckIn(HttpServletRequest request) {
         Long userId = getUserId(request);
         log.info("GET /checkins/today - User {}", userId);
-
+        // Сервис внутри уже использует ALMATY_ZONE
         CheckInResponse response = checkInService.getTodayCheckIn(userId);
-
         return ResponseEntity.ok(response);
     }
 
     /**
      * Check if user has checked in today
-     * GET /api/v1/checkins/today/exists
      */
     @GetMapping("/today/exists")
     public ResponseEntity<Map<String, Boolean>> hasCheckedInToday(HttpServletRequest request) {
         Long userId = getUserId(request);
         log.info("GET /checkins/today/exists - User {}", userId);
-
+        // Сервис внутри уже использует ALMATY_ZONE
         boolean exists = checkInService.hasCheckedInToday(userId);
-
         return ResponseEntity.ok(Map.of(
                 "exists", exists,
                 "canCheckIn", !exists
@@ -91,7 +88,6 @@ public class DailyCheckInController {
 
     /**
      * Get check-in for specific date
-     * GET /api/v1/checkins/{date}
      */
     @GetMapping("/{date}")
     public ResponseEntity<CheckInResponse> getCheckInByDate(
@@ -100,15 +96,12 @@ public class DailyCheckInController {
     ) {
         Long userId = getUserId(request);
         log.info("GET /checkins/{} - User {}", date, userId);
-
         CheckInResponse response = checkInService.getCheckIn(userId, date);
-
         return ResponseEntity.ok(response);
     }
 
     /**
      * Update check-in for specific date
-     * PUT /api/v1/checkins/{date}
      */
     @PutMapping("/{date}")
     public ResponseEntity<CheckInResponse> updateCheckIn(
@@ -118,15 +111,12 @@ public class DailyCheckInController {
     ) {
         Long userId = getUserId(request);
         log.info("PUT /checkins/{} - User {}", date, userId);
-
         CheckInResponse response = checkInService.updateCheckIn(userId, date, checkInRequest);
-
         return ResponseEntity.ok(response);
     }
 
     /**
      * Delete check-in for specific date
-     * DELETE /api/v1/checkins/{date}
      */
     @DeleteMapping("/{date}")
     public ResponseEntity<Map<String, String>> deleteCheckIn(
@@ -135,9 +125,7 @@ public class DailyCheckInController {
     ) {
         Long userId = getUserId(request);
         log.info("DELETE /checkins/{} - User {}", date, userId);
-
         checkInService.deleteCheckIn(userId, date);
-
         return ResponseEntity.ok(Map.of(
                 "message", "Check-in deleted successfully",
                 "date", date.toString()
@@ -146,21 +134,18 @@ public class DailyCheckInController {
 
     /**
      * Get recent check-ins (last 30 days)
-     * GET /api/v1/checkins/recent
      */
     @GetMapping("/recent")
     public ResponseEntity<List<CheckInResponse>> getRecentCheckIns(HttpServletRequest request) {
         Long userId = getUserId(request);
         log.info("GET /checkins/recent - User {}", userId);
-
+        // Сервис внутри использует ALMATY_ZONE для расчета 30 дней
         List<CheckInResponse> checkIns = checkInService.getRecentCheckIns(userId);
-
         return ResponseEntity.ok(checkIns);
     }
 
     /**
      * Get check-ins within date range
-     * GET /api/v1/checkins?startDate=2024-01-01&endDate=2024-01-31
      */
     @GetMapping
     public ResponseEntity<List<CheckInResponse>> getCheckInsInRange(
@@ -169,76 +154,58 @@ public class DailyCheckInController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
     ) {
         Long userId = getUserId(request);
-        log.info("GET /checkins?startDate={}&endDate={} - User {}",
-                startDate, endDate, userId);
-
-        List<CheckInResponse> checkIns = checkInService.getCheckInsInRange(
-                userId, startDate, endDate
-        );
-
+        log.info("GET /checkins?startDate={}&endDate={} - User {}", startDate, endDate, userId);
+        List<CheckInResponse> checkIns = checkInService.getCheckInsInRange(userId, startDate, endDate);
         return ResponseEntity.ok(checkIns);
     }
 
     /**
      * Get user's streak information
-     * GET /api/v1/checkins/streak
      */
     @GetMapping("/streak")
     public ResponseEntity<StreakResponse> getStreak(HttpServletRequest request) {
         Long userId = getUserId(request);
         log.info("GET /checkins/streak - User {}", userId);
-
         StreakResponse response = streakService.getStreakResponse(userId);
-
         return ResponseEntity.ok(response);
     }
 
     /**
-     * Recalculate user's streak (admin/debug)
-     * POST /api/v1/checkins/streak/recalculate
+     * Recalculate user's streak
      */
     @PostMapping("/streak/recalculate")
     public ResponseEntity<StreakResponse> recalculateStreak(HttpServletRequest request) {
         Long userId = getUserId(request);
         log.info("POST /checkins/streak/recalculate - User {}", userId);
-
         streakService.recalculateStreak(userId);
         StreakResponse response = streakService.getStreakResponse(userId);
-
         return ResponseEntity.ok(response);
     }
 
     /**
-     * Get weekly statistics (last 7 days)
-     * GET /api/v1/checkins/stats/weekly
+     * Get weekly statistics
      */
     @GetMapping("/stats/weekly")
     public ResponseEntity<CheckInStatsResponse> getWeeklyStats(HttpServletRequest request) {
         Long userId = getUserId(request);
         log.info("GET /checkins/stats/weekly - User {}", userId);
-
         CheckInStatsResponse stats = analyticsService.getWeeklyStats(userId);
-
         return ResponseEntity.ok(stats);
     }
 
     /**
-     * Get monthly statistics (last 30 days)
-     * GET /api/v1/checkins/stats/monthly
+     * Get monthly statistics
      */
     @GetMapping("/stats/monthly")
     public ResponseEntity<CheckInStatsResponse> getMonthlyStats(HttpServletRequest request) {
         Long userId = getUserId(request);
         log.info("GET /checkins/stats/monthly - User {}", userId);
-
         CheckInStatsResponse stats = analyticsService.getMonthlyStats(userId);
-
         return ResponseEntity.ok(stats);
     }
 
     /**
      * Get custom statistics for date range
-     * GET /api/v1/checkins/stats?startDate=2024-01-01&endDate=2024-01-31
      */
     @GetMapping("/stats")
     public ResponseEntity<CheckInStatsResponse> getCustomStats(
@@ -247,24 +214,39 @@ public class DailyCheckInController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
     ) {
         Long userId = getUserId(request);
-        log.info("GET /checkins/stats?startDate={}&endDate={} - User {}",
-                startDate, endDate, userId);
-
+        log.info("GET /checkins/stats?startDate={}&endDate={} - User {}", startDate, endDate, userId);
         CheckInStatsResponse stats = analyticsService.getStats(userId, startDate, endDate);
-
         return ResponseEntity.ok(stats);
     }
 
     /**
+     * Получить список дат выполненных задач для календаря
+     */
+    @GetMapping("/calendar")
+    public ResponseEntity<List<LocalDate>> getCompletedTaskDates(
+            HttpServletRequest request,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month
+    ) {
+        Long userId = getUserId(request);
+        LocalDate now = LocalDate.now(ALMATY_ZONE);
+        int targetYear = (year != null) ? year : now.getYear();
+        int targetMonth = (month != null) ? month : now.getMonthValue();
+
+        log.info("GET /checkins/calendar - User {}, Year {}, Month {}", userId, targetYear, targetMonth);
+        List<LocalDate> dates = checkInService.getCompletionDatesInMonth(userId, targetYear, targetMonth);
+        return ResponseEntity.ok(dates);
+    }
+
+    /**
      * Health check endpoint
-     * GET /api/v1/checkins/health
      */
     @GetMapping("/health")
     public ResponseEntity<Map<String, String>> healthCheck() {
         return ResponseEntity.ok(Map.of(
                 "status", "UP",
                 "service", "daily-checkin-service",
-                "timestamp", LocalDate.now().toString()
+                "timestamp", LocalDate.now(ALMATY_ZONE).toString()
         ));
     }
 }
