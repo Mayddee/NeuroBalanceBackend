@@ -23,15 +23,19 @@ public class UserGameStats {
     @Column(name = "user_id", nullable = false, unique = true)
     private Long userId;
 
+    @Builder.Default
     @Column(name = "total_games_played", nullable = false)
     private Integer totalGamesPlayed = 0;
 
+    @Builder.Default
     @Column(name = "total_xp_earned", nullable = false)
     private Integer totalXpEarned = 0;
 
+    @Builder.Default
     @Column(name = "total_wins", nullable = false)
     private Integer totalWins = 0;
 
+    @Builder.Default
     @Column(name = "total_losses", nullable = false)
     private Integer totalLosses = 0;
 
@@ -41,22 +45,27 @@ public class UserGameStats {
     @Column(name = "memory_pairs_best_time")
     private Integer memoryPairsBestTime;
 
+    @Builder.Default
     @Column(name = "current_streak", nullable = false)
     private Integer currentStreak = 0;
 
+    @Builder.Default
     @Column(name = "best_streak", nullable = false)
     private Integer bestStreak = 0;
 
     @Column(name = "last_played_date")
     private LocalDate lastPlayedDate;
 
-    // Вспомогательные методы
+    // --- Вспомогательные методы (бизнес-логика) ---
+
     public void incrementGamesPlayed() {
         this.totalGamesPlayed++;
     }
 
     public void addXp(Integer xp) {
-        this.totalXpEarned += xp;
+        if (xp != null) {
+            this.totalXpEarned += xp;
+        }
     }
 
     public void recordWin() {
@@ -73,13 +82,15 @@ public class UserGameStats {
     }
 
     public void updateBestTime(BrainGameResult.GameType gameType, Integer timeTaken) {
+        if (timeTaken == null) return;
+        
         if (gameType == BrainGameResult.GameType.NUMBER_SEQUENCE) {
-            if (numberSequenceBestTime == null || timeTaken < numberSequenceBestTime) {
-                numberSequenceBestTime = timeTaken;
+            if (this.numberSequenceBestTime == null || timeTaken < this.numberSequenceBestTime) {
+                this.numberSequenceBestTime = timeTaken;
             }
         } else if (gameType == BrainGameResult.GameType.MEMORY_PAIRS) {
-            if (memoryPairsBestTime == null || timeTaken < memoryPairsBestTime) {
-                memoryPairsBestTime = timeTaken;
+            if (this.memoryPairsBestTime == null || timeTaken < this.memoryPairsBestTime) {
+                this.memoryPairsBestTime = timeTaken;
             }
         }
     }

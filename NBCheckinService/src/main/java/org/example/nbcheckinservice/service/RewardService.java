@@ -6,7 +6,7 @@ import org.example.nbcheckinservice.dto.RewardResponse;
 import org.example.nbcheckinservice.entity.UserReward;
 import org.example.nbcheckinservice.entity.UserStreak;
 import org.example.nbcheckinservice.repository.UserRewardRepository;
-import org.hibernate.validator.internal.util.stereotypes.Lazy;
+import org.example.nbcheckinservice.repository.UserStreakRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,8 +15,9 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Service for managing user rewards/badges
- * ✅ VERIFIED: All logic is correct
+ * Service for managing user rewards/badges.
+ * Намеренно НЕ зависит от StreakService — чтобы избежать циклической зависимости.
+ * Читает стрик напрямую из репозитория.
  */
 @Service
 @RequiredArgsConstructor
@@ -24,14 +25,13 @@ import java.util.stream.Collectors;
 public class RewardService {
 
     private final UserRewardRepository rewardRepository;
-
-    @Lazy
-    private final StreakService streakService;
+    private final UserStreakRepository streakRepository;
 
     @Transactional
     public List<RewardResponse> checkAndUnlockRewards(Long userId) {
-        UserStreak streak = streakService.getOrCreateStreak(userId);
-        int currentStreak = streak.getCurrentStreak();
+        int currentStreak = streakRepository.findByUserId(userId)
+                .map(UserStreak::getCurrentStreak)
+                .orElse(0);
 
         List<UserReward> newlyUnlocked = new ArrayList<>();
 

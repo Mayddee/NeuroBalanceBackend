@@ -7,7 +7,6 @@ import org.example.nbcheckinservice.entity.DailyCheckIn;
 import org.example.nbcheckinservice.entity.UserStreak;
 import org.example.nbcheckinservice.repository.DailyCheckInRepository;
 import org.example.nbcheckinservice.repository.UserStreakRepository;
-import org.hibernate.validator.internal.util.stereotypes.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,8 +24,7 @@ import java.util.List;
 public class StreakService {
     private final UserStreakRepository streakRepository;
     private final DailyCheckInRepository checkInRepository;
-    @Lazy
-    private final RewardService rewardService; // Добавили связь с наградами
+    private final RewardService rewardService;
 
     private static final int BASE_XP_PER_CHECKIN = 10;
     private static final ZoneId ALMATY_ZONE = ZoneId.of("Asia/Almaty");

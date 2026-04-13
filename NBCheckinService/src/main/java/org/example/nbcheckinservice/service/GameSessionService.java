@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -22,6 +23,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class GameSessionService {
+
+    private static final ZoneId ALMATY_ZONE = ZoneId.of("Asia/Almaty");
 
     private final GameSessionRepository gameRepository;
     private final UserCharacterService characterService;
@@ -46,7 +49,7 @@ public class GameSessionService {
                 .durationSeconds(request.getDurationSeconds())
                 .isCompleted(request.getIsCompleted())
                 .isWon(request.getIsWon())
-                .playedAt(LocalDateTime.now()) // ✅ Auto-set to NOW
+                .playedAt(LocalDateTime.now(ALMATY_ZONE))
                 .build();
 
         // Calculate XP
@@ -75,7 +78,7 @@ public class GameSessionService {
      */
     @Transactional(readOnly = true)
     public GameStatsResponse getTodayStats(Long userId) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ALMATY_ZONE);
         LocalDateTime startOfDay = today.atStartOfDay();
         LocalDateTime endOfDay = today.plusDays(1).atStartOfDay();
 
@@ -112,7 +115,7 @@ public class GameSessionService {
      */
     @Transactional(readOnly = true)
     public boolean hasPlayedToday(Long userId) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ALMATY_ZONE);
         LocalDateTime startOfDay = today.atStartOfDay();
         LocalDateTime endOfDay = today.plusDays(1).atStartOfDay();
 

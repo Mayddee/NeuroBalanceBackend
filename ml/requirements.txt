@@ -12,12 +12,12 @@ flask>=3.0.0
 flask-cors>=4.0.0
 
 # Data Visualization
-matplotlib>=3.8.0
-seaborn>=0.13.0
+# matplotlib>=3.8.0
+# seaborn>=0.13.0
 
-# Jupyter для ноутбуков
-jupyter>=1.0.0
-ipykernel>=6.28.0
+# # Jupyter для ноутбуков
+# jupyter>=1.0.0
+# ipykernel>=6.28.0
 
 # Model Interpretability
 shap>=0.45.0
@@ -26,3 +26,5 @@ shap>=0.45.0
 scipy>=1.13.0
 python-dateutil>=2.9.0
 catboost
+flasgger>=0.9.7
+requests

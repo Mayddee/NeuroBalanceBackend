@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.nbcheckinservice.dto.MoodLogRequest;
 import org.example.nbcheckinservice.dto.MoodLogResponse;
+import org.example.nbcheckinservice.entity.DailyTask;
 import org.example.nbcheckinservice.entity.MoodLog;
 import org.example.nbcheckinservice.repository.MoodLogRepository;
 import org.springframework.stereotype.Service;
@@ -11,19 +12,22 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
  * Service for managing mood logs
- * ✅ VERIFIED: All logic is correct
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class MoodLogService {
 
+    private static final ZoneId ALMATY_ZONE = ZoneId.of("Asia/Almaty");
+
     private final MoodLogRepository moodLogRepository;
+    private final DailyTaskService dailyTaskService;
 
     @Transactional
     public MoodLogResponse createMoodLog(Long userId, MoodLogRequest request) {
@@ -33,7 +37,7 @@ public class MoodLogService {
                 .userId(userId)
                 .logTimestamp(request.getLogTimestamp() != null
                         ? request.getLogTimestamp()
-                        : LocalDateTime.now()) // ✅ Auto-set to NOW
+                        : LocalDateTime.now(ALMATY_ZONE))
                 .moodValue(request.getMoodValue())
                 .moodLabel(request.getMoodLabel())
                 .intensity(request.getIntensity())
@@ -46,6 +50,8 @@ public class MoodLogService {
 
         MoodLog savedLog = moodLogRepository.save(moodLog);
         log.info("Mood log created with ID: {}", savedLog.getId());
+
+        dailyTaskService.autoCompleteTask(userId, DailyTask.TaskType.LOG_MOOD);
 
         return mapToResponse(savedLog);
     }
@@ -88,7 +94,7 @@ public class MoodLogService {
     public List<MoodLogResponse> getTodayMoodLogs(Long userId) {
         log.debug("Fetching today's mood logs for user {}", userId);
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ALMATY_ZONE);
         LocalDateTime startOfDay = today.atStartOfDay();
         LocalDateTime endOfDay = today.plusDays(1).atStartOfDay();
 

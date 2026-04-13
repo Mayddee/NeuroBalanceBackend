@@ -1,6 +1,6 @@
 package org.example.nbcheckinservice.controller;
 
-
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -9,13 +9,15 @@ import org.example.nbcheckinservice.dto.BrainGameSubmitRequest;
 import org.example.nbcheckinservice.dto.GameResultResponse;
 import org.example.nbcheckinservice.entity.BrainGameResult;
 import org.example.nbcheckinservice.service.BrainGameService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
-@RequestMapping("/api/v1/brain-games")
+@RequestMapping("/brain-games")
 @RequiredArgsConstructor
 @Slf4j
 public class BrainGameController {
@@ -23,69 +25,58 @@ public class BrainGameController {
     private final BrainGameService brainGameService;
 
     /**
-     * Отправка результата игры
-     *
      * POST /api/v1/brain-games/submit
-     * Header: X-User-Id: 1
-     * Body: {
-     *   "gameType": "NUMBER_SEQUENCE",
-     *   "score": 100,
-     *   "timeTakenSeconds": 45,
-     *   "isWin": true,
-     *   "difficultyLevel": "MEDIUM",
-     *   "mistakesCount": 2
-     * }
+     * Header: Authorization: Bearer <jwt>
+     * Когнитивные игры: NUMBER_SEQUENCE или MEMORY_PAIRS
      */
     @PostMapping("/submit")
-    public ResponseEntity<GameResultResponse> submitGameResult(
-            @RequestHeader("X-User-Id") Long userId,
-            @Valid @RequestBody BrainGameSubmitRequest request
+    public ResponseEntity<?> submitGameResult(
+            HttpServletRequest request,
+            @Valid @RequestBody BrainGameSubmitRequest body
     ) {
-        log.info("📥 Game result submission from user {}: {}", userId, request.getGameType());
-
-        GameResultResponse response = brainGameService.submitGameResult(userId, request);
-
-        return ResponseEntity.ok(response);
+        Long userId = (Long) request.getAttribute("userId");
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Unauthorized: missing JWT token"));
+        }
+        log.info("📥 Game result submission from user {}: {}", userId, body.getGameType());
+        return ResponseEntity.ok(brainGameService.submitGameResult(userId, body));
     }
 
     /**
-     * Получить статистику пользователя
-     *
      * GET /api/v1/brain-games/stats
-     * Header: X-User-Id: 1
+     * Header: Authorization: Bearer <jwt>
      */
     @GetMapping("/stats")
-    public ResponseEntity<BrainGameStatsResponse> getUserStats(
-            @RequestHeader("X-User-Id") Long userId
-    ) {
-        log.info("📊 Fetching stats for user {}", userId);
-
-        BrainGameStatsResponse stats = brainGameService.getUserStats(userId);
-
-        return ResponseEntity.ok(stats);
+    public ResponseEntity<?> getUserStats(HttpServletRequest request) {
+        Long userId = (Long) request.getAttribute("userId");
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Unauthorized: missing JWT token"));
+        }
+        log.info("📊 Fetching brain game stats for user {}", userId);
+        return ResponseEntity.ok(brainGameService.getUserStats(userId));
     }
 
     /**
-     * История игр пользователя
-     *
      * GET /api/v1/brain-games/history
-     * Header: X-User-Id: 1
+     * Header: Authorization: Bearer <jwt>
+     * Param: gameType (optional) — NUMBER_SEQUENCE | MEMORY_PAIRS
      */
     @GetMapping("/history")
-    public ResponseEntity<List<BrainGameResult>> getUserGameHistory(
-            @RequestHeader("X-User-Id") Long userId,
+    public ResponseEntity<?> getUserGameHistory(
+            HttpServletRequest request,
             @RequestParam(required = false) BrainGameResult.GameType gameType
     ) {
-        log.info("📜 Fetching game history for user {}", userId);
-
-        List<BrainGameResult> history;
-
-        if (gameType != null) {
-            history = brainGameService.getUserGameHistoryByType(userId, gameType);
-        } else {
-            history = brainGameService.getUserGameHistory(userId);
+        Long userId = (Long) request.getAttribute("userId");
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Unauthorized: missing JWT token"));
         }
-
+        log.info("📜 Fetching brain game history for user {}", userId);
+        List<BrainGameResult> history = (gameType != null)
+                ? brainGameService.getUserGameHistoryByType(userId, gameType)
+                : brainGameService.getUserGameHistory(userId);
         return ResponseEntity.ok(history);
     }
 }

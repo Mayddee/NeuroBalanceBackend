@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -21,12 +22,14 @@ import java.util.stream.Collectors;
 @Slf4j
 public class DailyTaskService {
 
+    private static final ZoneId ALMATY_ZONE = ZoneId.of("Asia/Almaty");
+
     private final DailyTaskRepository taskRepository;
     private final UserCharacterService characterService;
 
     @Transactional
     public List<DailyTaskResponse> getTodayTasks(Long userId) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ALMATY_ZONE);
 
         List<DailyTask> existingTasks = taskRepository.findByUserIdAndTaskDate(userId, today);
 
@@ -41,7 +44,7 @@ public class DailyTaskService {
 
     @Transactional
     public DailyTaskResponse completeTask(Long userId, DailyTask.TaskType taskType) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ALMATY_ZONE);
 
         DailyTask task = taskRepository
                 .findByUserIdAndTaskDateAndTaskType(userId, today, taskType)
@@ -65,7 +68,7 @@ public class DailyTaskService {
 
     @Transactional
     public void autoCompleteTask(Long userId, DailyTask.TaskType taskType) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ALMATY_ZONE);
 
         taskRepository.findByUserIdAndTaskDateAndTaskType(userId, today, taskType)
                 .ifPresent(task -> {
@@ -77,7 +80,7 @@ public class DailyTaskService {
 
     @Transactional(readOnly = true)
     public TaskStatsResponse getTaskStats(Long userId) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ALMATY_ZONE);
         List<DailyTask> todayTasks = taskRepository.findByUserIdAndTaskDate(userId, today);
 
         long completedCount = todayTasks.stream()

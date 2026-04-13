@@ -93,7 +93,6 @@ public class DailyCheckInService {
         log.debug("Character happiness updated based on wellness score: {}", wellnessScore);
 
         dailyTaskService.autoCompleteTask(userId, DailyTask.TaskType.COMPLETE_CHECKIN);
-        streakService.updateStreak(userId, LocalDate.now(ZoneId.of("Asia/Almaty")));
         if (request.getSleepHours() != null &&
                 request.getSleepHours().compareTo(new BigDecimal("7.0")) >= 0) {
             dailyTaskService.autoCompleteTask(userId, DailyTask.TaskType.SLEEP_7_HOURS);

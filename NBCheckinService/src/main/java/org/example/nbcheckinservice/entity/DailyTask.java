@@ -6,6 +6,7 @@ import lombok.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 /**
  * Entity representing daily tasks for users
@@ -31,7 +32,7 @@ public class DailyTask {
     @Column(name = "task_date", nullable = false)
     @NotNull(message = "Task date is required")
     @Builder.Default
-    private LocalDate taskDate = LocalDate.now();
+    private LocalDate taskDate = LocalDate.now(ZoneId.of("Asia/Almaty"));
 
     @Enumerated(EnumType.STRING)
     @Column(name = "task_type", nullable = false)
@@ -54,9 +55,9 @@ public class DailyTask {
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
+        createdAt = LocalDateTime.now(ZoneId.of("Asia/Almaty"));
         if (taskDate == null) {
-            taskDate = LocalDate.now();
+            taskDate = LocalDate.now(ZoneId.of("Asia/Almaty"));
         }
     }
 
@@ -65,7 +66,7 @@ public class DailyTask {
      */
     public void complete() {
         this.isCompleted = true;
-        this.completedAt = LocalDateTime.now();
+        this.completedAt = LocalDateTime.now(ZoneId.of("Asia/Almaty"));
     }
 
     // ========== TASK TYPES ==========

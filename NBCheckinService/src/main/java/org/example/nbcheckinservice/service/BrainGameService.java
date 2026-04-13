@@ -6,6 +6,7 @@ import org.example.nbcheckinservice.dto.BrainGameStatsResponse;
 import org.example.nbcheckinservice.dto.BrainGameSubmitRequest;
 import org.example.nbcheckinservice.dto.GameResultResponse;
 import org.example.nbcheckinservice.entity.BrainGameResult;
+import org.example.nbcheckinservice.entity.DailyTask;
 import org.example.nbcheckinservice.entity.UserGameStats;
 import org.example.nbcheckinservice.repository.BrainGameResultRepository;
 import org.example.nbcheckinservice.repository.UserGameStatsRepository;
@@ -25,8 +26,8 @@ public class BrainGameService {
 
     private final BrainGameResultRepository gameResultRepository;
     private final UserGameStatsRepository gameStatsRepository;
+    private final DailyTaskService dailyTaskService;
 
-    // Константа для часового пояса Алматы (+5)
     private static final ZoneId ALMATY_ZONE = ZoneId.of("Asia/Almaty");
 
     @Transactional
@@ -79,6 +80,9 @@ public class BrainGameService {
         stats.setLastPlayedDate(LocalDate.now(ALMATY_ZONE));
 
         gameStatsRepository.save(stats);
+
+        // Автоматически завершаем дневной таск PLAY_GAME
+        dailyTaskService.autoCompleteTask(userId, DailyTask.TaskType.PLAY_GAME);
 
         // 4. Генерируем сообщение
         String message = generateMessage(request, xpEarned, isNewBestTime);
