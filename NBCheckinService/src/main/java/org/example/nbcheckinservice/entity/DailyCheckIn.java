@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 /**
  * Entity representing a daily check-in record
@@ -126,20 +127,21 @@ public class DailyCheckIn {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    private static final ZoneId ALMATY_ZONE = ZoneId.of("Asia/Almaty");
+
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
+        createdAt = LocalDateTime.now(ALMATY_ZONE);
+        updatedAt = LocalDateTime.now(ALMATY_ZONE);
 
-        // Set default date to today if not provided
         if (checkInDate == null) {
-            checkInDate = LocalDate.now();
+            checkInDate = LocalDate.now(ALMATY_ZONE);
         }
     }
 
     @PreUpdate
     protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now(ALMATY_ZONE);
     }
 
     /**

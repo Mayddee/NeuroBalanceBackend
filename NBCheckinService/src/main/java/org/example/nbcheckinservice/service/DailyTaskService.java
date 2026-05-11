@@ -12,6 +12,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -76,6 +77,33 @@ public class DailyTaskService {
                         completeTask(userId, taskType);
                     }
                 });
+    }
+
+    @Transactional(readOnly = true)
+    public List<DailyTaskResponse> getTasksByDate(Long userId, LocalDate date) {
+        return taskRepository.findByUserIdAndTaskDate(userId, date)
+                .stream().map(this::buildTaskResponse).collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getTaskHistory(Long userId, LocalDate startDate, LocalDate endDate) {
+        return taskRepository.findByUserIdAndTaskDateBetween(userId, startDate, endDate)
+                .stream()
+                .collect(Collectors.groupingBy(t -> t.getTaskDate().toString()))
+                .entrySet().stream()
+                .sorted(Map.Entry.<String, List<DailyTask>>comparingByKey().reversed())
+                .map(e -> {
+                    List<DailyTask> dayTasks = e.getValue();
+                    long completed = dayTasks.stream().filter(DailyTask::getIsCompleted).count();
+                    return Map.<String, Object>of(
+                            "date", e.getKey(),
+                            "tasks", dayTasks.stream().map(this::buildTaskResponse).collect(Collectors.toList()),
+                            "completedCount", completed,
+                            "totalCount", dayTasks.size(),
+                            "completionPercentage", dayTasks.isEmpty() ? 0.0 : (completed * 100.0) / dayTasks.size()
+                    );
+                })
+                .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)

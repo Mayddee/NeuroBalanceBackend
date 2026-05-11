@@ -1,0 +1,52 @@
+{
+  "version": "1.0.0",
+  "description": "Health Metrics ML models — M-Rest, M-Ready, M-Balance",
+  "algorithm": "XGBoost Regressor",
+  "training_samples": 12000,
+  "features": [
+    "sleep_hours",
+    "sleep_quality",
+    "energy_level",
+    "morning_mood",
+    "evening_mood",
+    "stress_level",
+    "did_exercise",
+    "ate_healthy",
+    "had_social_interaction",
+    "felt_rested",
+    "deep_sleep_minutes",
+    "rem_sleep_minutes",
+    "total_sleep_minutes",
+    "sleep_debt",
+    "sleep_efficiency",
+    "wellbeing_index",
+    "habit_count"
+  ],
+  "targets": [
+    "m_rest",
+    "m_ready",
+    "m_balance"
+  ],
+  "formulas": {
+    "m_rest": "min(sleep_hours/8,1)*50 + quality_score*30 + subjective_score*20",
+    "m_ready": "(energy/10)*40 + (morning_mood/5)*30 + m_rest*0.30",
+    "m_balance": "max((10-stress)/9,0)*40 + habits*40 + (evening_mood/5)*20"
+  },
+  "model_performance": {
+    "m_rest": {
+      "r2": 0.917,
+      "mae": 2.01,
+      "rmse": 2.52
+    },
+    "m_ready": {
+      "r2": 0.9713,
+      "mae": 2.02,
+      "rmse": 2.56
+    },
+    "m_balance": {
+      "r2": 0.9674,
+      "mae": 2.13,
+      "rmse": 2.66
+    }
+  }
+}

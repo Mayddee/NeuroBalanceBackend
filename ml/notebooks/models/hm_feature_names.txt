@@ -1,0 +1,17 @@
+sleep_hours
+sleep_quality
+energy_level
+morning_mood
+evening_mood
+stress_level
+did_exercise
+ate_healthy
+had_social_interaction
+felt_rested
+deep_sleep_minutes
+rem_sleep_minutes
+total_sleep_minutes
+sleep_debt
+sleep_efficiency
+wellbeing_index
+habit_count

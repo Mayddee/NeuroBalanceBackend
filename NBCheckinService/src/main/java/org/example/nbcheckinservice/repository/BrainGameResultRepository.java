@@ -46,4 +46,22 @@ public interface BrainGameResultRepository extends JpaRepository<BrainGameResult
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end
     );
+
+    // Все игры пользователя в диапазоне дат (для недельного гейта прогрессии)
+    @Query("SELECT r FROM BrainGameResult r WHERE r.userId = :userId " +
+            "AND r.playedAt >= :start AND r.playedAt <= :end ORDER BY r.playedAt DESC")
+    List<BrainGameResult> findUserGamesInRange(
+            @Param("userId") Long userId,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
+    // Игры за конкретную дату
+    @Query("SELECT r FROM BrainGameResult r WHERE r.userId = :userId " +
+            "AND r.playedAt >= :dayStart AND r.playedAt < :dayEnd ORDER BY r.playedAt DESC")
+    List<BrainGameResult> findByUserIdAndDate(
+            @Param("userId") Long userId,
+            @Param("dayStart") LocalDateTime dayStart,
+            @Param("dayEnd") LocalDateTime dayEnd
+    );
 }

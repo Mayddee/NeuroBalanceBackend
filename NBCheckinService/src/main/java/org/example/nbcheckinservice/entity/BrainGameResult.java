@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Entity
 @Table(name = "brain_game_results")
@@ -48,9 +49,11 @@ public class BrainGameResult {
     @Column(name = "played_at", nullable = false)
     private LocalDateTime playedAt;
 
+    private static final ZoneId ALMATY_ZONE = ZoneId.of("Asia/Almaty");
+
     @PrePersist
     protected void onCreate() {
-        playedAt = LocalDateTime.now();
+        playedAt = LocalDateTime.now(ALMATY_ZONE);
     }
 
     public enum GameType {

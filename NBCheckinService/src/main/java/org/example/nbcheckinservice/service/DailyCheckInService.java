@@ -9,8 +9,9 @@ import org.example.nbcheckinservice.entity.DailyCheckIn;
 import org.example.nbcheckinservice.entity.DailyTask;
 import org.example.nbcheckinservice.entity.UserStreak;
 import org.example.nbcheckinservice.exception.CheckInAlreadyExistsException;
+import org.example.nbcheckinservice.kafka.KafkaProducerService;
 import org.example.nbcheckinservice.repository.DailyCheckInRepository;
-import org.example.nbcheckinservice.repository.DailyTaskRepository; // Добавлен для нового метода
+import org.example.nbcheckinservice.repository.DailyTaskRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,7 +36,8 @@ public class DailyCheckInService {
     private final UserCharacterService characterService;
     private final DailyTaskService dailyTaskService;
     private final RewardService rewardService;
-    private final DailyTaskRepository taskRepository; // Репозиторий тасок для проверки выполнения всех задач
+    private final DailyTaskRepository taskRepository;
+    private final KafkaProducerService kafkaProducerService;
 
     private static final ZoneId ALMATY_ZONE = ZoneId.of("Asia/Almaty");
 
@@ -103,6 +105,9 @@ public class DailyCheckInService {
         if (!newRewards.isEmpty()) {
             log.info("🎉 Unlocked {} new reward(s) for user {}", newRewards.size(), userId);
         }
+
+        // Async: публикуем событие в Kafka → HealthMetricsKafkaConsumer вычислит M-Rest/M-Ready/M-Balance
+        kafkaProducerService.publishCheckInCreated(userId, checkInDate);
 
         return buildCheckInResponse(savedCheckIn, streak);
     }

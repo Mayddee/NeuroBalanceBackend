@@ -94,6 +94,14 @@ public class NewGameSessionService {
         return gameRepository.existsByUserIdAndPlayedAtBetween(userId, start, end);
     }
 
+    @Transactional(readOnly = true)
+    public List<GameSessionResponse> getSessionsByDate(Long userId, LocalDate date) {
+        LocalDateTime start = date.atStartOfDay();
+        LocalDateTime end = date.plusDays(1).atStartOfDay();
+        return gameRepository.findByUserIdAndPlayedAtBetweenOrderByPlayedAtDesc(userId, start, end)
+                .stream().map(this::buildGameResponse).collect(java.util.stream.Collectors.toList());
+    }
+
     private GameSessionResponse buildGameResponse(NewGameSession game) {
         return GameSessionResponse.builder()
                 .id(game.getId())

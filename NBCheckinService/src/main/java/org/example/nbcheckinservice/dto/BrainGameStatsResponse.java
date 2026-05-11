@@ -24,4 +24,9 @@ public class BrainGameStatsResponse {
     private Integer memoryPairsBestTime;
 
     private String lastPlayedDate;
+
+    // Weekly stats (current ISO week, Mon-Sun)
+    private Integer weeklyGamesPlayed;
+    private Integer weeklyWins;
+    private Integer weeklyXpEarned;
 }

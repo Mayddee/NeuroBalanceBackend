@@ -14,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -84,6 +85,17 @@ public class MoodLogController {
         log.info("GET /mood/today - User {} fetching today's mood logs", userId);
         List<MoodLogResponse> logs = moodLogService.getTodayMoodLogs(userId);
         return ResponseEntity.ok(logs);
+    }
+
+    @GetMapping("/date/{date}")
+    @Operation(summary = "Get mood logs for a specific date (Asia/Almaty)")
+    public ResponseEntity<List<MoodLogResponse>> getMoodLogsByDate(
+            HttpServletRequest request,
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        Long userId = getUserId(request);
+        log.info("GET /mood/date/{} - User {} fetching mood logs", date, userId);
+        return ResponseEntity.ok(moodLogService.getMoodLogsByDate(userId, date));
     }
 
     @GetMapping("/range")

@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.nbcheckinservice.dto.SleepLogRequest;
 import org.example.nbcheckinservice.dto.SleepLogResponse;
 import org.example.nbcheckinservice.entity.SleepLog;
+import org.example.nbcheckinservice.kafka.KafkaProducerService;
 import org.example.nbcheckinservice.repository.SleepLogRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -24,7 +26,10 @@ import java.util.stream.Collectors;
 @Slf4j
 public class SleepLogService {
 
+    private static final ZoneId ALMATY_ZONE = ZoneId.of("Asia/Almaty");
+
     private final SleepLogRepository sleepLogRepository;
+    private final KafkaProducerService kafkaProducerService;
 
     @Transactional
     public SleepLogResponse createSleepLog(Long userId, SleepLogRequest request) {
@@ -41,6 +46,9 @@ public class SleepLogService {
 
         SleepLog savedLog = sleepLogRepository.save(sleepLog);
         log.info("Sleep log created with ID: {}", savedLog.getId());
+
+        // Async: re-trigger health metrics with enriched sleep data (deep/REM sleep)
+        kafkaProducerService.publishSleepLogged(userId, request.getSleepDate(), "CREATED");
 
         return mapToResponse(savedLog);
     }
@@ -85,13 +93,13 @@ public class SleepLogService {
 
     @Transactional(readOnly = true)
     public SleepLogResponse getTodaySleepLog(Long userId) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ALMATY_ZONE);
         return getSleepLogByDate(userId, today);
     }
 
     @Transactional(readOnly = true)
     public boolean hasSleepLogToday(Long userId) {
-        return sleepLogRepository.existsByUserIdAndSleepDate(userId, LocalDate.now());
+        return sleepLogRepository.existsByUserIdAndSleepDate(userId, LocalDate.now(ALMATY_ZONE));
     }
 
     @Transactional(readOnly = true)
@@ -122,6 +130,8 @@ public class SleepLogService {
         SleepLog updatedLog = sleepLogRepository.save(sleepLog);
         log.info("Sleep log {} updated successfully", id);
 
+        kafkaProducerService.publishSleepLogged(userId, sleepLog.getSleepDate(), "UPDATED");
+
         return mapToResponse(updatedLog);
     }
 
@@ -139,6 +149,8 @@ public class SleepLogService {
 
         SleepLog updatedLog = sleepLogRepository.save(sleepLog);
         log.info("Sleep log updated successfully for date {}", date);
+
+        kafkaProducerService.publishSleepLogged(userId, date, "UPDATED");
 
         return mapToResponse(updatedLog);
     }

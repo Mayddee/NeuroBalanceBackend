@@ -39,3 +39,10 @@ __pycache__/
 ml/notebooks/*.csv
 ml/__pycache__/
 .DS_Store
+
+.venv_diagram/
+venv/
+__pycache__/
+.DS_Store
+*.pyc
+.env

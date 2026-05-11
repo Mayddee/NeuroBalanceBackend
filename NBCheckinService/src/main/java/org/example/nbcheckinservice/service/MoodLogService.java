@@ -108,6 +108,16 @@ public class MoodLogService {
     }
 
     @Transactional(readOnly = true)
+    public List<MoodLogResponse> getMoodLogsByDate(Long userId, LocalDate date) {
+        log.debug("Fetching mood logs for user {} on date {}", userId, date);
+        LocalDateTime start = date.atStartOfDay();
+        LocalDateTime end = date.plusDays(1).atStartOfDay();
+        return moodLogRepository.findByUserIdAndLogTimestampBetweenOrderByLogTimestampDesc(
+                        userId, start, end)
+                .stream().map(this::mapToResponse).collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
     public List<MoodLogResponse> getMoodLogsInRange(
             Long userId,
             LocalDateTime startTime,

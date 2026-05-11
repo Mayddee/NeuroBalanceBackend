@@ -5,12 +5,16 @@ import lombok.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 /**
- * HealthMetrics - Calculated health metrics shown on main screen
- * - M-Balance (48%): Emotional balance and stress management capability
- * - M-Rest (76%): Recovery and rest quality
- * - M-Ready (90%): Readiness for cognitive tasks
+ * HealthMetrics — три ключевых показателя здоровья, вычисляемых после каждого чекина:
+ *   M-Rest    (0-100) — качество восстановления/сна
+ *   M-Ready   (0-100) — когнитивная готовность к дню
+ *   M-Balance (0-100) — эмоциональный баланс / управление стрессом
+ *
+ * Формулы идентичны логике мобильного приложения, но вместо захардкоженных данных
+ * используются реальные поля из DailyCheckIn + SleepLog.
  */
 @Entity
 @Table(name = "health_metrics", uniqueConstraints = {
@@ -23,6 +27,8 @@ import java.time.LocalDateTime;
 @Builder
 public class HealthMetrics {
 
+    private static final ZoneId ALMATY_ZONE = ZoneId.of("Asia/Almaty");
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -33,58 +39,90 @@ public class HealthMetrics {
     @Column(name = "metric_date", nullable = false)
     private LocalDate metricDate;
 
-    // ========== THREE CORE METRICS ==========
-
-    @Column(name = "m_balance", nullable = false)
-    @Builder.Default
-    private Integer mBalance = 50; // Emotional balance (0-100%)
+    // ========== THREE CORE METRICS (0-100%) ==========
 
     @Column(name = "m_rest", nullable = false)
     @Builder.Default
-    private Integer mRest = 50; // Rest quality (0-100%)
+    private Integer mRest = 50;
 
     @Column(name = "m_ready", nullable = false)
     @Builder.Default
-    private Integer mReady = 50; // Cognitive readiness (0-100%)
+    private Integer mReady = 50;
+
+    @Column(name = "m_balance", nullable = false)
+    @Builder.Default
+    private Integer mBalance = 50;
 
     @Column(name = "overall_wellness_score", nullable = false)
     @Builder.Default
-    private Integer overallWellnessScore = 63; // Average of all three
+    private Integer overallWellnessScore = 50;
 
-    // ========== INPUT DATA FOR CALCULATIONS ==========
+    // ========== INPUT FROM DailyCheckIn ==========
 
-    // Stress level (1-5 scale)
-    @Column(name = "stress_level")
-    private Integer stressLevel;
-
-    // Energy level (0-100% battery)
-    @Column(name = "energy_level")
-    private Integer energyLevel;
-
-    // Sleep hours
+    /** Sleep hours (0-24) from DailyCheckIn.sleepHours */
     @Column(name = "sleep_hours")
     private Double sleepHours;
 
-    // Sleep quality (1-5 scale)
+    /** Sleep quality (1-10) from DailyCheckIn.sleepQuality */
     @Column(name = "sleep_quality")
     private Integer sleepQuality;
 
-    // Mood (morning + evening, 1-5 scale)
+    /** Energy level (1-10) from DailyCheckIn.energyLevel */
+    @Column(name = "energy_level")
+    private Integer energyLevel;
+
+    /** Morning mood (1-5) from DailyCheckIn.morningMood */
     @Column(name = "morning_mood")
     private Integer morningMood;
 
+    /** Evening mood (1-5) from DailyCheckIn.eveningMood */
     @Column(name = "evening_mood")
     private Integer eveningMood;
 
-    // Physical activity minutes
+    /** Stress level (1-10) from DailyCheckIn.stressLevel */
+    @Column(name = "stress_level")
+    private Integer stressLevel;
+
+    /** Physical activity minutes from DailyCheckIn.physicalActivityMinutes */
     @Column(name = "activity_minutes")
     private Integer activityMinutes;
 
-    // Cognitive games played
+    /** Cognitive games played count from DailyCheckIn.cognitiveGameCount */
     @Column(name = "cognitive_games_played")
     private Integer cognitiveGamesPlayed;
 
-    // Metadata
+    /** From DailyCheckIn.didExercise — used in MBalance */
+    @Column(name = "did_exercise")
+    private Boolean didExercise;
+
+    /** From DailyCheckIn.ateHealthy — used in MBalance */
+    @Column(name = "ate_healthy")
+    private Boolean ateHealthy;
+
+    /** From DailyCheckIn.hadSocialInteraction — used in MBalance */
+    @Column(name = "had_social_interaction")
+    private Boolean hadSocialInteraction;
+
+    // ========== INPUT FROM SleepLog (optional, enriches MRest) ==========
+
+    /** Deep sleep minutes from SleepLog.deepSleepMinutes */
+    @Column(name = "deep_sleep_minutes")
+    private Integer deepSleepMinutes;
+
+    /** REM sleep minutes from SleepLog.remSleepMinutes */
+    @Column(name = "rem_sleep_minutes")
+    private Integer remSleepMinutes;
+
+    /** Total sleep minutes (totalHours * 60) from SleepLog */
+    @Column(name = "total_sleep_minutes")
+    private Integer totalSleepMinutes;
+
+    /** Whether user felt rested from SleepLog.feltRested */
+    @Column(name = "felt_rested")
+    private Boolean feltRested;
+
+    // ========== METADATA ==========
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -93,116 +131,138 @@ public class HealthMetrics {
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
+        createdAt = LocalDateTime.now(ALMATY_ZONE);
+        updatedAt = LocalDateTime.now(ALMATY_ZONE);
     }
 
     @PreUpdate
     protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now(ALMATY_ZONE);
     }
 
-    /**
-     * Calculate M-Balance (Emotional Balance)
-     * Factors: stress level (inverted), mood stability, energy level
-     */
-    public void calculateMBalance() {
-        int score = 50; // Base score
-
-        // Stress (inverted: low stress = high balance)
-        if (stressLevel != null) {
-            score += (5 - stressLevel) * 5; // Low stress (1) = +20, High stress (5) = 0
-        }
-
-        // Mood stability (average of morning/evening)
-        if (morningMood != null && eveningMood != null) {
-            int avgMood = (morningMood + eveningMood) / 2;
-            score += (avgMood - 3) * 10; // Mood 5 = +20, Mood 1 = -20
-        }
-
-        // Energy level
-        if (energyLevel != null) {
-            score += (energyLevel - 50) / 5; // High energy = bonus
-        }
-
-        mBalance = Math.max(0, Math.min(100, score)); // Clamp 0-100
-    }
+    // ========== CALCULATION METHODS ==========
 
     /**
-     * Calculate M-Rest (Recovery Quality)
-     * Factors: sleep hours, sleep quality, evening mood
+     * M-Rest = качество сна и восстановления.
+     *
+     * Формула (идентично мобильному приложению):
+     *   durationScore  = min(sleepHours / 8.0, 1.0) * 50   — длительность сна (макс 50)
+     *   qualityScore   — если есть deep+REM из SleepLog:
+     *                      min((deep+rem)/total / 0.40, 1.0) * 30
+     *                    иначе: (sleepQuality / 10.0) * 30
+     *   subjectiveScore— если feltRested != null: 20 (да) / 10 (нет)
+     *                    иначе: 20 (нейтральное значение)
+     *   Итог: durationScore + qualityScore + subjectiveScore (0-100)
      */
     public void calculateMRest() {
-        int score = 50; // Base score
+        double hours = sleepHours != null ? sleepHours : 7.0;
+        double durationScore = Math.min(hours / 8.0, 1.0) * 50.0;
 
-        // Sleep hours (optimal: 7-9 hours)
-        if (sleepHours != null) {
-            if (sleepHours >= 7.0 && sleepHours <= 9.0) {
-                score += 25; // Optimal sleep
-            } else if (sleepHours >= 6.0 && sleepHours <= 10.0) {
-                score += 10; // Acceptable sleep
-            } else {
-                score -= 10; // Poor sleep duration
-            }
+        double qualityScore;
+        if (deepSleepMinutes != null && remSleepMinutes != null
+                && totalSleepMinutes != null && totalSleepMinutes > 0) {
+            double deepRem = deepSleepMinutes + remSleepMinutes;
+            qualityScore = Math.min((deepRem / totalSleepMinutes) / 0.40, 1.0) * 30.0;
+        } else if (sleepQuality != null) {
+            qualityScore = (sleepQuality / 10.0) * 30.0;
+        } else {
+            qualityScore = 15.0;
         }
 
-        // Sleep quality
-        if (sleepQuality != null) {
-            score += (sleepQuality - 3) * 10; // Quality 5 = +20, Quality 1 = -20
+        double subjectiveScore;
+        if (feltRested != null) {
+            subjectiveScore = feltRested ? 20.0 : 10.0;
+        } else {
+            subjectiveScore = 20.0;
         }
 
-        // Evening mood (indicator of day recovery)
-        if (eveningMood != null) {
-            score += (eveningMood - 3) * 5;
-        }
-
-        mRest = Math.max(0, Math.min(100, score)); // Clamp 0-100
+        mRest = clamp((int) (durationScore + qualityScore + subjectiveScore), 0, 100);
     }
 
     /**
-     * Calculate M-Ready (Cognitive Readiness)
-     * Factors: energy level, morning mood, sleep quality, cognitive games played
+     * M-Ready = когнитивная готовность к дню.
+     *
+     * Формула (идентично мобильному приложению):
+     *   energyScore = (energyLevel / 10.0) * 40   — уровень энергии (1-10) → 40
+     *   moodScore   = (morningMood / 5.0) * 30     — утреннее настроение (1-5) → 30
+     *   restScore   = mRest * 0.30                 — вклад качества сна → 30
+     *   Итог: energyScore + moodScore + restScore (0-100)
+     *
+     * ВАЖНО: calculateMRest() должен быть вызван до calculateMReady()
      */
     public void calculateMReady() {
-        int score = 50; // Base score
+        double energyScore = energyLevel != null ? (energyLevel / 10.0) * 40.0 : 20.0;
+        double moodScore = morningMood != null ? (morningMood / 5.0) * 30.0 : 15.0;
+        double restScore = mRest * 0.30;
 
-        // Energy level (primary factor)
-        if (energyLevel != null) {
-            score += (energyLevel - 50) / 2; // Energy 100% = +25
-        }
-
-        // Morning mood
-        if (morningMood != null) {
-            score += (morningMood - 3) * 10; // Mood 5 = +20
-        }
-
-        // Sleep quality (affects readiness)
-        if (sleepQuality != null) {
-            score += (sleepQuality - 3) * 5;
-        }
-
-        // Cognitive games (shows active brain)
-        if (cognitiveGamesPlayed != null && cognitiveGamesPlayed > 0) {
-            score += Math.min(10, cognitiveGamesPlayed * 5); // Up to +10
-        }
-
-        mReady = Math.max(0, Math.min(100, score)); // Clamp 0-100
+        mReady = clamp((int) (energyScore + moodScore + restScore), 0, 100);
     }
 
     /**
-     * Calculate overall wellness score (average of all three)
+     * M-Balance = эмоциональный баланс и стрессоустойчивость.
+     *
+     * Формула (идентично мобильному приложению):
+     *   stressScore = max((10 - stressLevel) / 9.0, 0) * 40  — стресс (1-10 инвертированный) → 40
+     *   habitsScore = didExercise(13.3) + ateHealthy(13.3) + hadSocialInteraction(13.4) → макс 40
+     *   moodScore   = (eveningMood / 5.0) * 20                — вечернее настроение (1-5) → 20
+     *   Итог: stressScore + habitsScore + moodScore (0-100)
      */
+    public void calculateMBalance() {
+        double sl = stressLevel != null ? stressLevel : 5.0;
+        double stressScore = Math.max((10.0 - sl) / 9.0, 0) * 40.0;
+
+        double habitsScore = 0.0;
+        if (Boolean.TRUE.equals(didExercise)) habitsScore += 13.3;
+        if (Boolean.TRUE.equals(ateHealthy)) habitsScore += 13.3;
+        if (Boolean.TRUE.equals(hadSocialInteraction)) habitsScore += 13.4;
+
+        double moodScore = eveningMood != null ? (eveningMood / 5.0) * 20.0 : 10.0;
+
+        mBalance = clamp((int) (stressScore + habitsScore + moodScore), 0, 100);
+    }
+
+    /** Overall wellness = среднее трёх метрик */
     public void calculateOverallWellness() {
-        overallWellnessScore = (mBalance + mRest + mReady) / 3;
+        overallWellnessScore = (mRest + mReady + mBalance) / 3;
     }
 
     /**
-     * Recalculate all metrics
+     * Пересчитать все три метрики и итоговый wellness.
+     * Порядок важен: MRest → MReady (зависит от mRest) → MBalance → Overall
      */
     public void recalculateAll() {
-        calculateMBalance();
         calculateMRest();
         calculateMReady();
+        calculateMBalance();
         calculateOverallWellness();
+    }
+
+    // ========== LABEL HELPERS ==========
+
+    public String getMRestLabel() {
+        return scoreLabel(mRest);
+    }
+
+    public String getMReadyLabel() {
+        return scoreLabel(mReady);
+    }
+
+    public String getMBalanceLabel() {
+        return scoreLabel(mBalance);
+    }
+
+    public String getOverallLabel() {
+        return scoreLabel(overallWellnessScore);
+    }
+
+    private static String scoreLabel(int score) {
+        if (score >= 80) return "Excellent";
+        if (score >= 60) return "Good";
+        if (score >= 40) return "Fair";
+        return "Poor";
+    }
+
+    private static int clamp(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
     }
 }

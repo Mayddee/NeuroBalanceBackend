@@ -5,6 +5,7 @@ import jakarta.validation.constraints.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 /**
  * Entity representing user's earned rewards/badges
@@ -46,9 +47,11 @@ public class UserReward {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    private static final ZoneId ALMATY_ZONE = ZoneId.of("Asia/Almaty");
+
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
+        createdAt = LocalDateTime.now(ALMATY_ZONE);
     }
 
     /**
@@ -56,7 +59,7 @@ public class UserReward {
      */
     public void unlock() {
         this.isUnlocked = true;
-        this.unlockedAt = LocalDateTime.now();
+        this.unlockedAt = LocalDateTime.now(ALMATY_ZONE);
     }
 
     // ========== REWARD TYPES ==========
