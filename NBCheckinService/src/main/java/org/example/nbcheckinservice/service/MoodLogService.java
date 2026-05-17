@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -33,11 +34,18 @@ public class MoodLogService {
     public MoodLogResponse createMoodLog(Long userId, MoodLogRequest request) {
         log.info("Creating mood log for user {}", userId);
 
+        LocalDateTime timestamp;
+        if (request.getLogTimestamp() != null) {
+            timestamp = request.getLogTimestamp();
+        } else if (request.getLogDate() != null) {
+            timestamp = request.getLogDate().atTime(LocalTime.now(ALMATY_ZONE));
+        } else {
+            timestamp = LocalDateTime.now(ALMATY_ZONE);
+        }
+
         MoodLog moodLog = MoodLog.builder()
                 .userId(userId)
-                .logTimestamp(request.getLogTimestamp() != null
-                        ? request.getLogTimestamp()
-                        : LocalDateTime.now(ALMATY_ZONE))
+                .logTimestamp(timestamp)
                 .moodValue(request.getMoodValue())
                 .moodLabel(request.getMoodLabel())
                 .intensity(request.getIntensity())
@@ -51,7 +59,9 @@ public class MoodLogService {
         MoodLog savedLog = moodLogRepository.save(moodLog);
         log.info("Mood log created with ID: {}", savedLog.getId());
 
-        dailyTaskService.autoCompleteTask(userId, DailyTask.TaskType.LOG_MOOD);
+        // Auto-complete LOG_MOOD for the same date the mood was logged on
+        LocalDate taskDate = timestamp.toLocalDate();
+        dailyTaskService.autoCompleteTask(userId, DailyTask.TaskType.LOG_MOOD, taskDate);
 
         return mapToResponse(savedLog);
     }

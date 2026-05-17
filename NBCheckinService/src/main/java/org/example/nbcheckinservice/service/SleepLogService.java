@@ -5,8 +5,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.nbcheckinservice.dto.SleepLogRequest;
 import org.example.nbcheckinservice.dto.SleepLogResponse;
 import org.example.nbcheckinservice.entity.SleepLog;
-import org.example.nbcheckinservice.kafka.KafkaProducerService;
+import org.example.nbcheckinservice.event.SleepLoggedApplicationEvent;
 import org.example.nbcheckinservice.repository.SleepLogRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,7 +30,7 @@ public class SleepLogService {
     private static final ZoneId ALMATY_ZONE = ZoneId.of("Asia/Almaty");
 
     private final SleepLogRepository sleepLogRepository;
-    private final KafkaProducerService kafkaProducerService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public SleepLogResponse createSleepLog(Long userId, SleepLogRequest request) {
@@ -47,8 +48,7 @@ public class SleepLogService {
         SleepLog savedLog = sleepLogRepository.save(sleepLog);
         log.info("Sleep log created with ID: {}", savedLog.getId());
 
-        // Async: re-trigger health metrics with enriched sleep data (deep/REM sleep)
-        kafkaProducerService.publishSleepLogged(userId, request.getSleepDate(), "CREATED");
+        eventPublisher.publishEvent(new SleepLoggedApplicationEvent(userId, request.getSleepDate(), "CREATED"));
 
         return mapToResponse(savedLog);
     }
@@ -130,7 +130,7 @@ public class SleepLogService {
         SleepLog updatedLog = sleepLogRepository.save(sleepLog);
         log.info("Sleep log {} updated successfully", id);
 
-        kafkaProducerService.publishSleepLogged(userId, sleepLog.getSleepDate(), "UPDATED");
+        eventPublisher.publishEvent(new SleepLoggedApplicationEvent(userId, sleepLog.getSleepDate(), "UPDATED"));
 
         return mapToResponse(updatedLog);
     }
@@ -150,7 +150,7 @@ public class SleepLogService {
         SleepLog updatedLog = sleepLogRepository.save(sleepLog);
         log.info("Sleep log updated successfully for date {}", date);
 
-        kafkaProducerService.publishSleepLogged(userId, date, "UPDATED");
+        eventPublisher.publishEvent(new SleepLoggedApplicationEvent(userId, date, "UPDATED"));
 
         return mapToResponse(updatedLog);
     }

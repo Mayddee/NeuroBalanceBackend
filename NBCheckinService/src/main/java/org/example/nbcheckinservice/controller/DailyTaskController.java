@@ -52,19 +52,22 @@ public class DailyTaskController {
     }
 
     /**
-     * Complete a task
+     * Complete a task, optionally for a specific date (Asia/Almaty). Defaults to today.
      * POST /api/v1/tasks/complete?taskType=COMPLETE_CHECKIN
+     * POST /api/v1/tasks/complete?taskType=COMPLETE_CHECKIN&date=2026-05-15
      */
     @PostMapping("/complete")
-    @Operation(summary = "Complete a task")
+    @Operation(summary = "Complete a task (optional date, defaults to today Asia/Almaty)")
     public ResponseEntity<DailyTaskResponse> completeTask(
             HttpServletRequest request,
-            @RequestParam DailyTask.TaskType taskType
+            @RequestParam DailyTask.TaskType taskType,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
         Long userId = getUserId(request);
-        log.info("POST /tasks/complete?taskType={} - User {}", taskType, userId);
+        LocalDate targetDate = date != null ? date : LocalDate.now(ZoneId.of("Asia/Almaty"));
+        log.info("POST /tasks/complete?taskType={}&date={} - User {}", taskType, targetDate, userId);
 
-        DailyTaskResponse task = taskService.completeTask(userId, taskType);
+        DailyTaskResponse task = taskService.completeTask(userId, taskType, targetDate);
         return ResponseEntity.ok(task);
     }
 
@@ -85,18 +88,19 @@ public class DailyTaskController {
     }
 
     /**
-     * Get tasks for a specific date (Asia/Almaty)
-     * GET /api/v1/tasks/date/2026-05-11
+     * Get (or create) tasks for a specific date (Asia/Almaty).
+     * Creates the full set of 5 tasks for that date if they don't exist yet.
+     * GET /api/v1/tasks/date/2026-05-15
      */
     @GetMapping("/date/{date}")
-    @Operation(summary = "Get tasks for a specific date")
+    @Operation(summary = "Get tasks for a specific date (creates if not yet initialized)")
     public ResponseEntity<List<DailyTaskResponse>> getTasksByDate(
             HttpServletRequest request,
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
         Long userId = getUserId(request);
         log.info("GET /tasks/date/{} - User {}", date, userId);
-        return ResponseEntity.ok(taskService.getTasksByDate(userId, date));
+        return ResponseEntity.ok(taskService.getTasksForDate(userId, date));
     }
 
     /**
@@ -117,24 +121,28 @@ public class DailyTaskController {
     }
 
     /**
-     * Called by NoteAI-backend (internal) when a user writes a note.
-     * Autocompletes the WRITE_NOTE daily task and awards XP.
+     * Called by NoteAI-backend when a user writes a note. Optional date (Asia/Almaty), defaults to today.
      *
      * POST /api/v1/tasks/note-written
-     * Header: Authorization: Bearer <jwt>
+     * POST /api/v1/tasks/note-written?date=2026-05-15
      */
     @PostMapping("/note-written")
-    @Operation(summary = "Mark WRITE_NOTE task as completed (called after note is written)")
-    public ResponseEntity<?> noteWritten(HttpServletRequest request) {
+    @Operation(summary = "Mark WRITE_NOTE task as completed (optional date, defaults to today)")
+    public ResponseEntity<?> noteWritten(
+            HttpServletRequest request,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
         Long userId = getUserId(request);
         if (userId == null) {
             return ResponseEntity.status(401).body(java.util.Map.of("error", "Unauthorized"));
         }
-        log.info("POST /tasks/note-written - auto-completing WRITE_NOTE for user {}", userId);
-        taskService.autoCompleteTask(userId, DailyTask.TaskType.WRITE_NOTE);
+        LocalDate targetDate = date != null ? date : LocalDate.now(ZoneId.of("Asia/Almaty"));
+        log.info("POST /tasks/note-written?date={} - auto-completing WRITE_NOTE for user {}", targetDate, userId);
+        taskService.autoCompleteTask(userId, DailyTask.TaskType.WRITE_NOTE, targetDate);
         return ResponseEntity.ok(java.util.Map.of(
                 "message", "WRITE_NOTE task completed",
-                "userId", userId
+                "userId", userId,
+                "date", targetDate.toString()
         ));
     }
 }

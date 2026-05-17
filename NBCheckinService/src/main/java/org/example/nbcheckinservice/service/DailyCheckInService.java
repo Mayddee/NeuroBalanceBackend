@@ -9,9 +9,10 @@ import org.example.nbcheckinservice.entity.DailyCheckIn;
 import org.example.nbcheckinservice.entity.DailyTask;
 import org.example.nbcheckinservice.entity.UserStreak;
 import org.example.nbcheckinservice.exception.CheckInAlreadyExistsException;
-import org.example.nbcheckinservice.kafka.KafkaProducerService;
+import org.example.nbcheckinservice.event.CheckInCreatedApplicationEvent;
 import org.example.nbcheckinservice.repository.DailyCheckInRepository;
 import org.example.nbcheckinservice.repository.DailyTaskRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,7 +38,7 @@ public class DailyCheckInService {
     private final DailyTaskService dailyTaskService;
     private final RewardService rewardService;
     private final DailyTaskRepository taskRepository;
-    private final KafkaProducerService kafkaProducerService;
+    private final ApplicationEventPublisher eventPublisher;
 
     private static final ZoneId ALMATY_ZONE = ZoneId.of("Asia/Almaty");
 
@@ -94,20 +95,27 @@ public class DailyCheckInService {
         characterService.updateHappiness(userId, wellnessScore);
         log.debug("Character happiness updated based on wellness score: {}", wellnessScore);
 
-        dailyTaskService.autoCompleteTask(userId, DailyTask.TaskType.COMPLETE_CHECKIN);
+        // Ensure daily tasks exist for this date BEFORE auto-completing any of them.
+        // Without this, autoCompleteTask silently skips because ifPresent finds nothing.
+        dailyTaskService.getTasksForDate(userId, checkInDate);
+
+        dailyTaskService.autoCompleteTask(userId, DailyTask.TaskType.COMPLETE_CHECKIN, checkInDate);
         if (request.getSleepHours() != null &&
                 request.getSleepHours().compareTo(new BigDecimal("7.0")) >= 0) {
-            dailyTaskService.autoCompleteTask(userId, DailyTask.TaskType.SLEEP_7_HOURS);
+            dailyTaskService.autoCompleteTask(userId, DailyTask.TaskType.SLEEP_7_HOURS, checkInDate);
             log.debug("Sleep task auto-completed (7+ hours)");
         }
 
         List<RewardResponse> newRewards = rewardService.checkAndUnlockRewards(userId);
         if (!newRewards.isEmpty()) {
-            log.info("🎉 Unlocked {} new reward(s) for user {}", newRewards.size(), userId);
+            log.info("Unlocked {} new reward(s) for user {}", newRewards.size(), userId);
         }
 
-        // Async: публикуем событие в Kafka → HealthMetricsKafkaConsumer вычислит M-Rest/M-Ready/M-Balance
-        kafkaProducerService.publishCheckInCreated(userId, checkInDate);
+        // Publish Spring event:
+        //  → HealthMetricsSaver (Order=1): saves health metrics AFTER_COMMIT in a new TX
+        //  → TransactionalKafkaPublisher (Order=2): sends Kafka event AFTER_COMMIT
+        // Both run after the check-in TX is committed, so the check-in is guaranteed to be in DB.
+        eventPublisher.publishEvent(new CheckInCreatedApplicationEvent(userId, checkInDate));
 
         return buildCheckInResponse(savedCheckIn, streak);
     }

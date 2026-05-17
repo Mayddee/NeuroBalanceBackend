@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.List;
 
@@ -36,13 +37,18 @@ public class NewGameSessionService {
         // Если они разные, здесь может потребоваться маппинг:
         // NewGameSession.GameType.valueOf(request.getGameType().name())
 
+        LocalDate gameDate = request.getGameDate() != null
+                ? request.getGameDate()
+                : LocalDate.now(ALMATY_ZONE);
+        LocalDateTime playedAt = gameDate.atTime(LocalTime.now(ALMATY_ZONE));
+
         NewGameSession game = NewGameSession.builder()
                 .userId(userId)
                 .gameType(NewGameSession.GameType.valueOf(request.getGameType().name()))
                 .durationSeconds(request.getDurationSeconds())
                 .isCompleted(request.getIsCompleted())
                 .isWon(request.getIsWon())
-                .playedAt(LocalDateTime.now(ALMATY_ZONE))
+                .playedAt(playedAt)
                 .build();
 
         game.calculateXpWithMultiplier(xpMultiplier);
@@ -50,7 +56,7 @@ public class NewGameSessionService {
 
         characterService.addXp(userId, game.getXpEarned());
         characterService.increaseHappiness(userId, 5);
-        taskService.autoCompleteTask(userId, org.example.nbcheckinservice.entity.DailyTask.TaskType.PLAY_GAME);
+        taskService.autoCompleteTask(userId, org.example.nbcheckinservice.entity.DailyTask.TaskType.PLAY_GAME, gameDate);
 
         return buildGameResponse(savedGame);
     }

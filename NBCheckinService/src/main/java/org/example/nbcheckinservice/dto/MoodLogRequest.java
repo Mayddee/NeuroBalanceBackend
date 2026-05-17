@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.*;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -17,8 +18,14 @@ import java.util.List;
 @Builder
 public class MoodLogRequest {
 
+    /** Full timestamp override — takes priority over logDate. */
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss[.SSS]")
     private LocalDateTime logTimestamp;
+
+    /** Simple date override (Asia/Almaty). Use when you want to log mood for a specific date.
+     *  Ignored if logTimestamp is provided. */
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate logDate;
 
     @NotNull(message = "Mood value is required")
     @Min(value = 1, message = "Mood value must be between 1 and 5")

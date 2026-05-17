@@ -8,6 +8,7 @@ import org.example.nbcheckinservice.repository.DailyCheckInRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.*;
@@ -143,23 +144,23 @@ public class AnalyticsService {
     }
 
     /**
-     * Get weekly stats (last 7 days) in Almaty timezone
+     * Get weekly stats for the current ISO week (Mon–Sun) in Almaty timezone
      */
     @Transactional(readOnly = true)
     public CheckInStatsResponse getWeeklyStats(Long userId) {
-        LocalDate endDate = LocalDate.now(ALMATY_ZONE);
-        LocalDate startDate = endDate.minusDays(6);
-        return getStats(userId, startDate, endDate);
+        LocalDate today = LocalDate.now(ALMATY_ZONE);
+        LocalDate startDate = today.with(DayOfWeek.MONDAY);
+        return getStats(userId, startDate, today);
     }
 
     /**
-     * Get monthly stats (last 30 days) in Almaty timezone
+     * Get monthly stats for the current calendar month (1st to today) in Almaty timezone
      */
     @Transactional(readOnly = true)
     public CheckInStatsResponse getMonthlyStats(Long userId) {
-        LocalDate endDate = LocalDate.now(ALMATY_ZONE);
-        LocalDate startDate = endDate.minusDays(29);
-        return getStats(userId, startDate, endDate);
+        LocalDate today = LocalDate.now(ALMATY_ZONE);
+        LocalDate startDate = today.withDayOfMonth(1);
+        return getStats(userId, startDate, today);
     }
 
     // ========== HELPER METHODS ==========

@@ -45,38 +45,54 @@ public class DailyTaskService {
 
     @Transactional
     public DailyTaskResponse completeTask(Long userId, DailyTask.TaskType taskType) {
-        LocalDate today = LocalDate.now(ALMATY_ZONE);
+        return completeTask(userId, taskType, LocalDate.now(ALMATY_ZONE));
+    }
 
+    @Transactional
+    public DailyTaskResponse completeTask(Long userId, DailyTask.TaskType taskType, LocalDate date) {
         DailyTask task = taskRepository
-                .findByUserIdAndTaskDateAndTaskType(userId, today, taskType)
-                .orElseThrow(() -> new IllegalArgumentException("Task not found for today"));
+                .findByUserIdAndTaskDateAndTaskType(userId, date, taskType)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Task " + taskType + " not found for date " + date));
 
         if (task.getIsCompleted()) {
-            log.warn("Task {} already completed for user {}", taskType, userId);
+            log.warn("Task {} already completed for user {} on {}", taskType, userId, date);
             return buildTaskResponse(task);
         }
 
         task.complete();
         DailyTask savedTask = taskRepository.save(task);
-
         characterService.addXp(userId, task.getXpReward());
 
-        log.info("✅ Task {} completed for user {}, awarded {} XP",
-                taskType, userId, task.getXpReward());
+        log.info("Task {} completed for user {} on {}, awarded {} XP",
+                taskType, userId, date, task.getXpReward());
 
         return buildTaskResponse(savedTask);
     }
 
     @Transactional
     public void autoCompleteTask(Long userId, DailyTask.TaskType taskType) {
-        LocalDate today = LocalDate.now(ALMATY_ZONE);
+        autoCompleteTask(userId, taskType, LocalDate.now(ALMATY_ZONE));
+    }
 
-        taskRepository.findByUserIdAndTaskDateAndTaskType(userId, today, taskType)
+    @Transactional
+    public void autoCompleteTask(Long userId, DailyTask.TaskType taskType, LocalDate date) {
+        taskRepository.findByUserIdAndTaskDateAndTaskType(userId, date, taskType)
                 .ifPresent(task -> {
                     if (!task.getIsCompleted()) {
-                        completeTask(userId, taskType);
+                        completeTask(userId, taskType, date);
                     }
                 });
+    }
+
+    /** Get (or create) tasks for any date, not just today. */
+    @Transactional
+    public List<DailyTaskResponse> getTasksForDate(Long userId, LocalDate date) {
+        List<DailyTask> tasks = taskRepository.findByUserIdAndTaskDate(userId, date);
+        if (tasks.isEmpty()) {
+            tasks = createDailyTasks(userId, date);
+        }
+        return tasks.stream().map(this::buildTaskResponse).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
