@@ -10,6 +10,7 @@ import org.example.nbcheckinservice.repository.DailyCheckInRepository;
 import org.example.nbcheckinservice.repository.HealthMetricsRepository;
 import org.example.nbcheckinservice.repository.SleepLogRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
@@ -44,7 +45,9 @@ public class HealthMetricsService {
      * Если метрики за эту дату уже есть — обновляет.
      * Если DailyCheckIn за эту дату нет — возвращает Optional.empty().
      */
-    @Transactional
+    // REQUIRES_NEW: всегда открывает новую транзакцию.
+    // Нужно т.к. метод вызывается из AFTER_COMMIT фазы (HealthMetricsSaver) и из Kafka-consumer потока.
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Optional<HealthMetricsResponse> calculateAndSave(Long userId, LocalDate date) {
         Optional<DailyCheckIn> checkInOpt = checkInRepository.findByUserIdAndCheckInDate(userId, date);
         if (checkInOpt.isEmpty()) {

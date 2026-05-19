@@ -15,34 +15,30 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * Service for gamification fun games
- * ✅ VERIFIED: All logic is correct
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class GameSessionService {
 
     private static final ZoneId ALMATY_ZONE = ZoneId.of("Asia/Almaty");
+    private static final int DAILY_XP_GAME_LIMIT = 3;
+    private static final int MIN_DURATION_FOR_XP_SECONDS = 20;
 
     private final GameSessionRepository gameRepository;
     private final UserCharacterService characterService;
     private final DailyTaskService taskService;
 
-    /**
-     * Record a game session
-     * ✅ GAMIFICATION LOGIC:
-     * 1. Calculate XP (base + win bonus + completion bonus)
-     * 2. Award XP to character
-     * 3. Increase character happiness +5
-     * 4. Auto-complete PLAY_GAME task
-     */
     @Transactional
     public GameSessionResponse recordGameSession(Long userId, GameSessionRequest request) {
         log.info("Recording {} game session for user {}", request.getGameType(), userId);
 
-        // Create game entity
+        LocalDate today = LocalDate.now(ALMATY_ZONE);
+        LocalDateTime dayStart = today.atStartOfDay();
+        LocalDateTime dayEnd = today.plusDays(1).atStartOfDay();
+
+        long todayCountForType = gameRepository.countByUserIdAndGameTypeAndPlayedAtBetween(
+                userId, request.getGameType(), dayStart, dayEnd);
+
         GameSession game = GameSession.builder()
                 .userId(userId)
                 .gameType(request.getGameType())
@@ -52,23 +48,31 @@ public class GameSessionService {
                 .playedAt(LocalDateTime.now(ALMATY_ZONE))
                 .build();
 
-        // Calculate XP
-        game.calculateXpEarned();
+        boolean meetsMinDuration = request.getDurationSeconds() != null
+                && request.getDurationSeconds() >= MIN_DURATION_FOR_XP_SECONDS;
+        boolean completedProperly = Boolean.TRUE.equals(request.getIsCompleted()) && meetsMinDuration;
+        boolean withinDailyLimit = todayCountForType < DAILY_XP_GAME_LIMIT;
 
-        // Save game
+        if (completedProperly && withinDailyLimit) {
+            game.calculateXpEarned();
+        } else {
+            game.setXpEarned(0);
+            game.setBonusXp(0);
+        }
+
         GameSession savedGame = gameRepository.save(game);
 
-        // ✅ GAMIFICATION: Award XP to character
-        characterService.addXp(userId, game.getXpEarned());
+        if (game.getXpEarned() > 0) {
+            characterService.addXp(userId, game.getXpEarned());
+        }
+        characterService.increaseHappiness(userId, 5);
 
-        // ✅ GAMIFICATION: Increase character happiness when playing games
-        characterService.increaseHappiness(userId, 5); // +5 happiness for playing
+        taskService.getTasksForDate(userId, today);
+        taskService.autoCompleteTask(userId, org.example.nbcheckinservice.entity.DailyTask.TaskType.PLAY_GAME, today);
 
-        // ✅ GAMIFICATION: Auto-complete daily task if this is first game today
-        taskService.autoCompleteTask(userId, org.example.nbcheckinservice.entity.DailyTask.TaskType.PLAY_GAME);
-
-        log.info("Game session recorded: earned {} XP (base: {}, bonus: {})",
-                game.getXpEarned(), request.getGameType().getBaseXp(), game.getBonusXp());
+        log.info("Game session recorded for user {}: {} XP (limit={}/day, count={}, completed={}, duration={}s)",
+                userId, game.getXpEarned(), DAILY_XP_GAME_LIMIT, todayCountForType,
+                request.getIsCompleted(), request.getDurationSeconds());
 
         return buildGameResponse(savedGame);
     }

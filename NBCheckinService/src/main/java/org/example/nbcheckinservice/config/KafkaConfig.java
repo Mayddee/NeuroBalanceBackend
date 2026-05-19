@@ -10,7 +10,6 @@ import org.springframework.kafka.config.TopicBuilder;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
-import org.springframework.kafka.support.serializer.JsonSerializer;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -20,10 +19,10 @@ import java.util.Map;
  *
  * Топики:
  *   checkin.created — публикуется при успешном создании DailyCheckIn.
- *                     Консьюмер (HealthMetricsKafkaConsumer) подписывается на него
- *                     и вычисляет метрики здоровья асинхронно.
+ *                     HealthMetricsKafkaConsumer подписывается и вычисляет метрики асинхронно.
  *
- * Bootstrap-servers, serialization и consumer group настраиваются в application.properties.
+ * Producer — кастомный (этот бин), переопределяет spring.kafka.producer.* из application.properties.
+ * Consumer — авто-конфигурация Spring Boot, читает spring.kafka.consumer.* из application.properties.
  */
 @Configuration
 public class KafkaConfig {
@@ -48,9 +47,9 @@ public class KafkaConfig {
         configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         // Правильные Kafka-сериализаторы (НЕ Jackson-классы!)
         configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-        // Не добавляем type headers — consumer сам знает тип через default.type
-        configProps.put(JsonSerializer.ADD_TYPE_INFO_HEADERS, false);
+        configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.springframework.kafka.support.serializer.JsonSerializer");
+        // Добавляем __TypeId__ header — consumer использует его для десериализации в нужный класс
+        configProps.put("spring.json.add.type.headers", true);
         return new DefaultKafkaProducerFactory<>(configProps);
     }
 

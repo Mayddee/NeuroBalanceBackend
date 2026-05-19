@@ -64,4 +64,14 @@ public interface BrainGameResultRepository extends JpaRepository<BrainGameResult
             @Param("dayStart") LocalDateTime dayStart,
             @Param("dayEnd") LocalDateTime dayEnd
     );
+
+    // Количество игр конкретного типа за день (для ограничения XP — макс 3)
+    @Query("SELECT COUNT(r) FROM BrainGameResult r WHERE r.userId = :userId " +
+            "AND r.gameType = :gameType AND r.playedAt >= :start AND r.playedAt < :end")
+    Long countTodayByGameType(
+            @Param("userId") Long userId,
+            @Param("gameType") BrainGameResult.GameType gameType,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
 }

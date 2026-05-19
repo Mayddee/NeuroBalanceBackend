@@ -23,17 +23,17 @@ public class SleepLogRequest {
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate sleepDate;
 
-    // ========== TIMING (LocalTime - HH:mm:ss format) ==========
+    // ========== TIMING (LocalTime - accepts HH:mm or HH:mm:ss) ==========
 
     @NotNull(message = "Bedtime is required")
-    @JsonFormat(pattern = "HH:mm:ss[.SSS]")
+    @JsonFormat(pattern = "HH:mm[:ss[.SSS]]")
     private LocalTime bedtime;
 
     @NotNull(message = "Wake time is required")
-    @JsonFormat(pattern = "HH:mm:ss[.SSS]")
+    @JsonFormat(pattern = "HH:mm[:ss[.SSS]]")
     private LocalTime wakeTime;
 
-    @JsonFormat(pattern = "HH:mm:ss[.SSS]")
+    @JsonFormat(pattern = "HH:mm[:ss[.SSS]]")
     private LocalTime fellAsleepTime;
 
     // ========== SLEEP DURATION ==========

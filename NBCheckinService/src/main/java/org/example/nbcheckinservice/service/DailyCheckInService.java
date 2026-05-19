@@ -20,7 +20,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -50,20 +49,11 @@ public class DailyCheckInService {
     public List<LocalDate> getCompletionDatesInMonth(Long userId, int year, int month) {
         LocalDate start = LocalDate.of(year, month, 1);
         LocalDate end = start.withDayOfMonth(start.lengthOfMonth());
-
-        // Получаем все задачи пользователя за этот месяц
-        List<DailyTask> monthlyTasks = taskRepository.findByUserIdAndTaskDateBetween(userId, start, end);
-
-        // Группируем задачи по датам и проверяем, что все задачи в этот день завершены
-        return monthlyTasks.stream()
-                .collect(Collectors.groupingBy(DailyTask::getTaskDate))
-                .entrySet().stream()
-                .filter(entry -> {
-                    List<DailyTask> dailyTasks = entry.getValue();
-                    // Проверяем: список не пуст И все элементы имеют isCompleted = true
-                    return !dailyTasks.isEmpty() && dailyTasks.stream().allMatch(DailyTask::getIsCompleted);
-                })
-                .map(Map.Entry::getKey)
+        // Returns all dates in the month where the user has a check-in record
+        return checkInRepository
+                .findByUserIdAndCheckInDateBetweenOrderByCheckInDateDesc(userId, start, end)
+                .stream()
+                .map(DailyCheckIn::getCheckInDate)
                 .sorted()
                 .collect(Collectors.toList());
     }

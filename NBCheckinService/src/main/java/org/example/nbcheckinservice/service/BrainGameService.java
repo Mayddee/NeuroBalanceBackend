@@ -33,10 +33,17 @@ public class BrainGameService {
 
     private static final ZoneId ALMATY_ZONE = ZoneId.of("Asia/Almaty");
 
+    private static final int DAILY_XP_GAME_LIMIT = 3;
+
     @Transactional
     public GameResultResponse submitGameResult(Long userId, BrainGameSubmitRequest request) {
 
-        Integer xpEarned = calculateXP(request);
+        LocalDate today = LocalDate.now(ALMATY_ZONE);
+        LocalDateTime dayStart = today.atStartOfDay();
+        LocalDateTime dayEnd = today.plusDays(1).atStartOfDay();
+
+        long todayCountForType = gameResultRepository.countTodayByGameType(userId, request.getGameType(), dayStart, dayEnd);
+        Integer xpEarned = todayCountForType >= DAILY_XP_GAME_LIMIT ? 0 : calculateXP(request);
 
         BrainGameResult result = BrainGameResult.builder()
                 .userId(userId)
@@ -76,8 +83,9 @@ public class BrainGameService {
         // XP сразу зачисляется на персонажа
         characterService.addXp(userId, xpEarned);
 
-        // Auto-complete PLAY_GAME daily task
-        dailyTaskService.autoCompleteTask(userId, DailyTask.TaskType.PLAY_GAME);
+        // Ensure tasks exist for today, then auto-complete PLAY_GAME
+        dailyTaskService.getTasksForDate(userId, today);
+        dailyTaskService.autoCompleteTask(userId, DailyTask.TaskType.PLAY_GAME, today);
 
         // Publish to Kafka for analytics (non-blocking, graceful degradation)
         kafkaProducerService.publishGameCompleted(
@@ -88,7 +96,9 @@ public class BrainGameService {
                 xpEarned
         );
 
-        String message = generateMessage(request, xpEarned, isNewBestTime);
+        String message = todayCountForType >= DAILY_XP_GAME_LIMIT
+                ? "Лимит XP за этот тип игры исчерпан (3 игры в день). Результат записан."
+                : generateMessage(request, xpEarned, isNewBestTime);
 
         log.info("Game result submitted for user {}: {} XP earned, difficulty={}", userId, xpEarned,
                 request.getDifficultyLevel());

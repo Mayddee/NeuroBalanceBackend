@@ -26,6 +26,8 @@ public class NewGameSessionService {
     private final RewardService rewardService;
 
     private static final ZoneId ALMATY_ZONE = ZoneId.of("Asia/Almaty");
+    private static final int DAILY_XP_GAME_LIMIT = 3;
+    private static final int MIN_DURATION_FOR_XP_SECONDS = 20;
 
     @Transactional
     public GameSessionResponse recordGameSession(Long userId, GameSessionRequest request) {
@@ -33,30 +35,52 @@ public class NewGameSessionService {
 
         double xpMultiplier = rewardService.getActiveXpMultiplier(userId);
 
-        // ВАЖНО: убедись, что в GameSessionRequest тип gameType совпадает с NewGameSession.GameType
-        // Если они разные, здесь может потребоваться маппинг:
-        // NewGameSession.GameType.valueOf(request.getGameType().name())
-
         LocalDate gameDate = request.getGameDate() != null
                 ? request.getGameDate()
                 : LocalDate.now(ALMATY_ZONE);
         LocalDateTime playedAt = gameDate.atTime(LocalTime.now(ALMATY_ZONE));
 
+        NewGameSession.GameType gameType = NewGameSession.GameType.valueOf(request.getGameType().name());
+
+        LocalDateTime dayStart = gameDate.atStartOfDay();
+        LocalDateTime dayEnd = gameDate.plusDays(1).atStartOfDay();
+        long todayCountForType = gameRepository.countByUserIdAndGameTypeAndPlayedAtBetween(
+                userId, gameType, dayStart, dayEnd);
+
         NewGameSession game = NewGameSession.builder()
                 .userId(userId)
-                .gameType(NewGameSession.GameType.valueOf(request.getGameType().name()))
+                .gameType(gameType)
                 .durationSeconds(request.getDurationSeconds())
                 .isCompleted(request.getIsCompleted())
                 .isWon(request.getIsWon())
                 .playedAt(playedAt)
                 .build();
 
-        game.calculateXpWithMultiplier(xpMultiplier);
+        boolean meetsMinDuration = request.getDurationSeconds() != null
+                && request.getDurationSeconds() >= MIN_DURATION_FOR_XP_SECONDS;
+        boolean completedProperly = Boolean.TRUE.equals(request.getIsCompleted()) && meetsMinDuration;
+        boolean withinDailyLimit = todayCountForType < DAILY_XP_GAME_LIMIT;
+
+        if (completedProperly && withinDailyLimit) {
+            game.calculateXpWithMultiplier(xpMultiplier);
+        } else {
+            game.setXpEarned(0);
+            game.setBonusXp(0);
+        }
+
         NewGameSession savedGame = gameRepository.save(game);
 
-        characterService.addXp(userId, game.getXpEarned());
+        if (game.getXpEarned() > 0) {
+            characterService.addXp(userId, game.getXpEarned());
+        }
         characterService.increaseHappiness(userId, 5);
+
+        taskService.getTasksForDate(userId, gameDate);
         taskService.autoCompleteTask(userId, org.example.nbcheckinservice.entity.DailyTask.TaskType.PLAY_GAME, gameDate);
+
+        log.info("New game session recorded for user {}: {} XP (limit={}/day, count={}, completed={}, duration={}s)",
+                userId, game.getXpEarned(), DAILY_XP_GAME_LIMIT, todayCountForType,
+                request.getIsCompleted(), request.getDurationSeconds());
 
         return buildGameResponse(savedGame);
     }
