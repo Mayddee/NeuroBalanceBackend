@@ -9,6 +9,8 @@ import org.example.nbcheckinservice.entity.MoodLog;
 import org.example.nbcheckinservice.repository.MoodLogRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -29,6 +31,7 @@ public class MoodLogService {
 
     private final MoodLogRepository moodLogRepository;
     private final DailyTaskService dailyTaskService;
+    private final RewardService rewardService;
 
     @Transactional
     public MoodLogResponse createMoodLog(Long userId, MoodLogRequest request) {
@@ -62,6 +65,14 @@ public class MoodLogService {
         // Auto-complete LOG_MOOD for the same date the mood was logged on
         LocalDate taskDate = timestamp.toLocalDate();
         dailyTaskService.autoCompleteTask(userId, DailyTask.TaskType.LOG_MOOD, taskDate);
+
+        // Check mood-based rewards after commit (FIRST_MOOD_LOG, MOOD_TRACKER_7)
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                rewardService.checkAndUnlockRewards(userId);
+            }
+        });
 
         return mapToResponse(savedLog);
     }

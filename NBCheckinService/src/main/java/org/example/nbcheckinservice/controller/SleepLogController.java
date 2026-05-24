@@ -52,8 +52,11 @@ public class SleepLogController {
     ) {
         Long userId = getUserId(request);
         log.info("GET /sleep/{} - User {} fetching sleep log", id, userId);
-        SleepLogResponse response = sleepLogService.getSleepLog(userId, id);
-        return ResponseEntity.ok(response);
+        try {
+            return ResponseEntity.ok(sleepLogService.getSleepLog(userId, id));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @GetMapping
@@ -81,9 +84,11 @@ public class SleepLogController {
         Long userId = getUserId(request);
         log.info("GET /sleep/today - User {} fetching today's sleep log", userId);
 
-        SleepLogResponse response = sleepLogService.getTodaySleepLog(userId);
-
-        return ResponseEntity.ok(response);
+        try {
+            return ResponseEntity.ok(sleepLogService.getTodaySleepLog(userId));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @GetMapping("/today/exists")
@@ -107,9 +112,11 @@ public class SleepLogController {
         Long userId = getUserId(request);
         log.info("GET /sleep/date/{} - User {} fetching sleep log", date, userId);
 
-        SleepLogResponse response = sleepLogService.getSleepLogByDate(userId, date);
-
-        return ResponseEntity.ok(response);
+        try {
+            return ResponseEntity.ok(sleepLogService.getSleepLogByDate(userId, date));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @GetMapping("/range")

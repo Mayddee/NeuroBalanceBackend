@@ -7,7 +7,10 @@ import org.example.nbcheckinservice.entity.DailyTask;
 import org.example.nbcheckinservice.repository.DailyTaskRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -27,6 +30,7 @@ public class DailyTaskService {
 
     private final DailyTaskRepository taskRepository;
     private final UserCharacterService characterService;
+    private final RewardService rewardService;
 
     @Transactional
     public List<DailyTaskResponse> getTodayTasks(Long userId) {
@@ -66,6 +70,14 @@ public class DailyTaskService {
 
         log.info("Task {} completed for user {} on {}, awarded {} XP",
                 taskType, userId, date, task.getXpReward());
+
+        // Check PERFECT_DAY reward and others after commit
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                rewardService.checkAndUnlockRewards(userId);
+            }
+        });
 
         return buildTaskResponse(savedTask);
     }
@@ -149,24 +161,47 @@ public class DailyTaskService {
     private List<DailyTask> createDailyTasks(Long userId, LocalDate date) {
         log.info("Creating daily tasks for user {} on {}", userId, date);
 
-        List<DailyTask> tasks = new ArrayList<>();
+        DailyTask.TaskType featured = featuredTaskForDate(date);
+        DayOfWeek dow = date.getDayOfWeek();
+        boolean isWeekend = (dow == DayOfWeek.SATURDAY || dow == DayOfWeek.SUNDAY);
 
+        List<DailyTask> tasks = new ArrayList<>();
         for (DailyTask.TaskType taskType : DailyTask.TaskType.values()) {
+            int xp = taskType.getBaseXp();
+            if (taskType == featured) {
+                xp += 20; // Daily featured task bonus
+            }
+            if (isWeekend) {
+                xp += 5;  // Weekend bonus on every task
+            }
             DailyTask task = DailyTask.builder()
                     .userId(userId)
                     .taskDate(date)
                     .taskType(taskType)
-                    .xpReward(taskType.getBaseXp())
+                    .xpReward(xp)
                     .isCompleted(false)
                     .build();
-
             tasks.add(task);
         }
 
+        log.info("Featured task for {} ({}): {} (+20 XP bonus)", date, dow, featured);
         return taskRepository.saveAll(tasks);
     }
 
+    /**
+     * Rotates the "featured" (bonus XP) task each day.
+     * Uses dayOfYear so the featured task doesn't repeat weekly on the same day.
+     *
+     * Order: COMPLETE_CHECKIN → SLEEP_7_HOURS → PLAY_GAME → LOG_MOOD → WRITE_NOTE → repeat
+     */
+    private DailyTask.TaskType featuredTaskForDate(LocalDate date) {
+        DailyTask.TaskType[] types = DailyTask.TaskType.values();
+        int index = (date.getDayOfYear() - 1) % types.length;
+        return types[index];
+    }
+
     private DailyTaskResponse buildTaskResponse(DailyTask task) {
+        boolean isFeatured = task.getXpReward() > task.getTaskType().getBaseXp();
         return DailyTaskResponse.builder()
                 .id(task.getId())
                 .taskType(task.getTaskType())
@@ -174,6 +209,7 @@ public class DailyTaskService {
                 .description(task.getTaskType().getDescription())
                 .xpReward(task.getXpReward())
                 .isCompleted(task.getIsCompleted())
+                .isFeatured(isFeatured)
                 .completedAt(task.getCompletedAt())
                 .taskDate(task.getTaskDate())
                 .build();

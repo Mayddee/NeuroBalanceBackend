@@ -11,5 +11,7 @@ public interface NewGameSessionRepository extends JpaRepository<NewGameSession, 
 
     boolean existsByUserIdAndPlayedAtBetween(Long userId, LocalDateTime start, LocalDateTime end);
 
+    long countByUserId(Long userId);
+
     long countByUserIdAndGameTypeAndPlayedAtBetween(Long userId, NewGameSession.GameType gameType, LocalDateTime start, LocalDateTime end);
 }

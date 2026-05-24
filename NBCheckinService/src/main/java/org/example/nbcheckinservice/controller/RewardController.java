@@ -33,18 +33,20 @@ public class RewardController {
         return (Long) request.getAttribute("userId");
     }
 
-    /**
-     * Get all rewards
-     * GET /api/v1/rewards
-     */
     @GetMapping
-    @Operation(summary = "Get all rewards")
+    @Operation(summary = "Get all rewards (locked and unlocked) with progress info")
     public ResponseEntity<List<RewardResponse>> getAllRewards(HttpServletRequest request) {
         Long userId = getUserId(request);
         log.info("GET /rewards - User {}", userId);
+        return ResponseEntity.ok(rewardService.getAllRewards(userId));
+    }
 
-        List<RewardResponse> rewards = rewardService.getAllRewards(userId);
-        return ResponseEntity.ok(rewards);
+    @GetMapping("/unlocked")
+    @Operation(summary = "Get only unlocked rewards/badges")
+    public ResponseEntity<List<RewardResponse>> getUnlockedRewards(HttpServletRequest request) {
+        Long userId = getUserId(request);
+        log.info("GET /rewards/unlocked - User {}", userId);
+        return ResponseEntity.ok(rewardService.getUnlockedRewards(userId));
     }
 
     /**

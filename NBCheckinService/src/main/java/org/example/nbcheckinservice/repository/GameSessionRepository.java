@@ -26,7 +26,8 @@ public interface GameSessionRepository extends JpaRepository<GameSession, Long> 
 
     long countByUserIdAndIsWonTrue(Long userId);
 
-    // Количество игр конкретного типа за день (для лимита XP — макс 3)
+    long countByUserId(Long userId);
+
     long countByUserIdAndGameTypeAndPlayedAtBetween(
             Long userId,
             GameSession.GameType gameType,

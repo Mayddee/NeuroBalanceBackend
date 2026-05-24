@@ -22,6 +22,7 @@ public class DailyTaskResponse {
 
     private Integer xpReward;
     private Boolean isCompleted;
+    private Boolean isFeatured;   // true = this task has a daily XP bonus today
 
     private LocalDate taskDate;
     private LocalDateTime completedAt;

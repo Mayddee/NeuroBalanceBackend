@@ -134,7 +134,7 @@ services:
     environment:
       PORT: 5001
     volumes:
-      - ./ml/notebooks/models:/app/notebooks/models:ro
+      - ./ml/notebooks/models:/app/notebooks/models
     networks:
       - nbauthservice-network
     healthcheck:

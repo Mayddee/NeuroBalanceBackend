@@ -14,6 +14,8 @@ public interface UserRewardRepository extends JpaRepository<UserReward, Long> {
 
     Optional<UserReward> findByUserIdAndRewardType(Long userId, UserReward.RewardType rewardType);
 
+    List<UserReward> findByUserIdAndIsUnlockedTrue(Long userId);
+
     List<UserReward> findByUserIdAndIsUnlockedTrueOrderByXpMultiplierDesc(Long userId);
 
     long countByUserIdAndIsUnlockedTrue(Long userId);

@@ -1,6 +1,7 @@
 package org.example.nbcheckinservice.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import tools.jackson.databind.annotation.JsonDeserialize;
 import jakarta.validation.constraints.*;
 import lombok.*;
 
@@ -26,14 +27,14 @@ public class SleepLogRequest {
     // ========== TIMING (LocalTime - accepts HH:mm or HH:mm:ss) ==========
 
     @NotNull(message = "Bedtime is required")
-    @JsonFormat(pattern = "HH:mm[:ss[.SSS]]")
+    @JsonDeserialize(using = FlexibleLocalTimeDeserializer.class)
     private LocalTime bedtime;
 
     @NotNull(message = "Wake time is required")
-    @JsonFormat(pattern = "HH:mm[:ss[.SSS]]")
+    @JsonDeserialize(using = FlexibleLocalTimeDeserializer.class)
     private LocalTime wakeTime;
 
-    @JsonFormat(pattern = "HH:mm[:ss[.SSS]]")
+    @JsonDeserialize(using = FlexibleLocalTimeDeserializer.class)
     private LocalTime fellAsleepTime;
 
     // ========== SLEEP DURATION ==========

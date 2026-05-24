@@ -28,6 +28,22 @@ public class GameSessionRequest {
     @NotNull(message = "Win status is required")
     private Boolean isWon;
 
+    /**
+     * Number of attempts/interactions during the session.
+     * For NUMBER_SEQUENCE_GAME: number of tries (fewer = better score).
+     * For CHARACTER_CARE: number of care actions performed (more = better score).
+     * Optional — games that don't use it can omit this field.
+     */
+    @Min(value = 1, message = "Attempts count must be at least 1")
+    private Integer attemptsCount;
+
+    /**
+     * Difficulty level of the session: EASY, MEDIUM, HARD.
+     * Applies an XP multiplier: EASY=1.0×, MEDIUM=1.5×, HARD=2.5×.
+     * Optional — defaults to EASY.
+     */
+    private String difficultyLevel;
+
     /** Optional: record for a past date (Asia/Almaty). Defaults to today if not provided. */
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate gameDate;

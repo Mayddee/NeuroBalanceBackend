@@ -34,6 +34,9 @@ public class KafkaProducerService {
     @Value("${kafka.topics.game-completed:game.completed}")
     private String gameCompletedTopic;
 
+    @Value("${kafka.topics.character-leveled-up:character.leveled-up}")
+    private String characterLeveledUpTopic;
+
     public void publishCheckInCreated(Long userId, LocalDate checkInDate) {
         try {
             // Передаём дату как String ("yyyy-MM-dd") — безопасная сериализация
@@ -68,6 +71,19 @@ public class KafkaProducerService {
                     gameCompletedTopic, userId, gameType, xpEarned);
         } catch (Exception e) {
             log.warn("Failed to publish GameCompletedEvent to Kafka (non-critical): {}", e.getMessage());
+        }
+    }
+
+    public void publishLevelUp(Long userId, int oldLevel, int newLevel,
+                               String characterType, String characterEmoji, int totalXp) {
+        try {
+            CharacterLeveledUpEvent event = new CharacterLeveledUpEvent(
+                    userId, oldLevel, newLevel, characterType, characterEmoji, totalXp);
+            kafkaTemplate.send(characterLeveledUpTopic, String.valueOf(userId), event);
+            log.info("Published CharacterLeveledUpEvent to '{}': userId={}, {}→{}",
+                    characterLeveledUpTopic, userId, oldLevel, newLevel);
+        } catch (Exception e) {
+            log.warn("Failed to publish CharacterLeveledUpEvent to Kafka (non-critical): {}", e.getMessage());
         }
     }
 }

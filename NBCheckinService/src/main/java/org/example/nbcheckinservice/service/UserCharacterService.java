@@ -5,21 +5,29 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.nbcheckinservice.dto.CharacterResponse;
 import org.example.nbcheckinservice.dto.CharacterSelectionRequest;
 import org.example.nbcheckinservice.entity.UserCharacter;
+import org.example.nbcheckinservice.kafka.KafkaProducerService;
 import org.example.nbcheckinservice.repository.UserCharacterRepository;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
-/**
- * Service for managing user characters/pets
- */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class UserCharacterService {
 
     private final UserCharacterRepository characterRepository;
+    private final StreakService streakService;
+    private final KafkaProducerService kafkaProducerService;
+
+    public UserCharacterService(UserCharacterRepository characterRepository,
+                                @Lazy StreakService streakService,
+                                KafkaProducerService kafkaProducerService) {
+        this.characterRepository = characterRepository;
+        this.streakService = streakService;
+        this.kafkaProducerService = kafkaProducerService;
+    }
 
     /**
      * Get or create character for user (default: MOA, Level 1)
@@ -51,21 +59,128 @@ public class UserCharacterService {
     }
 
     /**
-     * Add XP to character and handle level ups
+     * Add XP to character with a streak gate on level-up.
+     *
+     * Dynamic XP thresholds (formula: 500 × currentLevel²):
+     *   Lv1→2:  500 total XP
+     *   Lv2→3: 2000 total XP
+     *   Lv3→4: 4500 total XP
+     *   Lv4→5: 8000 total XP
+     *
+     * Streak requirements per level transition:
+     *   Lv1→2: 0 days (free first level-up)
+     *   Lv2→3: 7 days
+     *   Lv3→4: 14 days
+     *   Lv4→5: 21 days
      */
     @Transactional
     public CharacterResponse addXp(Long userId, int xpToAdd) {
-        log.info("Adding {} XP to character for user {}", xpToAdd, userId);
+        if (xpToAdd < 0) xpToAdd = 0;
+        log.debug("Adding {} XP to character for user {}", xpToAdd, userId);
 
         UserCharacter character = getOrCreateCharacter(userId);
+        // Enforce dynamic thresholds regardless of what the entity stored
+        recalibrateXpThreshold(character);
+        int oldLevel = character.getCurrentLevel();
+
+        if (xpToAdd > 0 && character.getCurrentLevel() < 5) {
+            int projectedXp = character.getTotalXp() + xpToAdd;
+            if (projectedXp >= character.getXpForNextLevel()) {
+                int requiredStreak = requiredStreakForLevel(character.getCurrentLevel());
+                if (requiredStreak > 0) {
+                    int currentStreak = streakService.getOrCreateStreak(userId).getCurrentStreak();
+                    if (currentStreak < requiredStreak) {
+                        int capped = Math.max(0, character.getXpForNextLevel() - character.getTotalXp() - 1);
+                        log.info("Level-up gated for user {}: streak {}/{} required, XP capped at {}",
+                                userId, currentStreak, requiredStreak, capped);
+                        xpToAdd = capped;
+                    }
+                }
+            }
+        }
+
         boolean leveledUp = character.addXp(xpToAdd);
 
         if (leveledUp) {
-            log.info("🎉 Character leveled up to level {}!", character.getCurrentLevel());
+            // Override the entity's hardcoded threshold with the dynamic value
+            recalibrateXpThreshold(character);
+            log.info("Character leveled up: user={}, {}→{}, totalXp={}, nextThreshold={}",
+                    userId, oldLevel, character.getCurrentLevel(), character.getTotalXp(), character.getXpForNextLevel());
+            kafkaProducerService.publishLevelUp(userId, oldLevel, character.getCurrentLevel(),
+                    character.getCharacterType().name(), character.getCharacterEmoji(), character.getTotalXp());
         }
 
-        UserCharacter savedCharacter = characterRepository.save(character);
-        return buildCharacterResponse(savedCharacter, leveledUp);
+        characterRepository.save(character);
+        return buildCharacterResponse(character, leveledUp);
+    }
+
+    /**
+     * Called by CharacterProgressionConsumer after every game or check-in event.
+     * Unlocks a pending level-up when:
+     *   - totalXp is at threshold-1 (capped by streak gate), AND
+     *   - the streak requirement for this level is now satisfied.
+     */
+    @Transactional
+    public void checkAndAutoLevelUp(Long userId) {
+        UserCharacter character = getOrCreateCharacter(userId);
+        if (character.getCurrentLevel() >= 5) return;
+
+        recalibrateXpThreshold(character);
+
+        int requiredStreak = requiredStreakForLevel(character.getCurrentLevel());
+        if (requiredStreak == 0) return;
+
+        boolean isPendingLevelUp = character.getTotalXp() == character.getXpForNextLevel() - 1;
+        if (!isPendingLevelUp) return;
+
+        int currentStreak = streakService.getOrCreateStreak(userId).getCurrentStreak();
+        if (currentStreak < requiredStreak) return;
+
+        int oldLevel = character.getCurrentLevel();
+        int threshold = character.getXpForNextLevel();
+
+        character.setTotalXp(threshold);
+        character.setCurrentLevel(oldLevel + 1);
+        character.setXpForNextLevel(dynamicXpThreshold(oldLevel + 1));
+        character.setHappinessLevel(Math.min(100, character.getHappinessLevel() + 10));
+        character.setEnergyLevel(100);
+
+        characterRepository.save(character);
+
+        log.info("Auto level-up unlocked for user {}: {}→{} (streak={}/{})",
+                userId, oldLevel, character.getCurrentLevel(), currentStreak, requiredStreak);
+        kafkaProducerService.publishLevelUp(userId, oldLevel, character.getCurrentLevel(),
+                character.getCharacterType().name(), character.getCharacterEmoji(), character.getTotalXp());
+    }
+
+    // Minimum check-in streak needed to level up FROM currentLevel to currentLevel+1
+    private int requiredStreakForLevel(int currentLevel) {
+        return switch (currentLevel) {
+            case 1 -> 0;   // Lv1→2: free
+            case 2 -> 7;   // Lv2→3: 7-day streak
+            case 3 -> 14;  // Lv3→4: 14-day streak
+            case 4 -> 21;  // Lv4→5: 21-day streak
+            default -> 0;
+        };
+    }
+
+    /**
+     * Dynamic XP threshold (cumulative total XP to reach next level).
+     * Formula: 500 × currentLevel²
+     *   Lv1→2:  500 XP  (500 × 1²)
+     *   Lv2→3: 2000 XP  (500 × 2²)
+     *   Lv3→4: 4500 XP  (500 × 3²)
+     *   Lv4→5: 8000 XP  (500 × 4²)
+     */
+    private int dynamicXpThreshold(int currentLevel) {
+        if (currentLevel >= 5) return 0;
+        return 500 * currentLevel * currentLevel;
+    }
+
+    private void recalibrateXpThreshold(UserCharacter character) {
+        if (character.getCurrentLevel() < 5) {
+            character.setXpForNextLevel(dynamicXpThreshold(character.getCurrentLevel()));
+        }
     }
 
     /**
@@ -81,12 +196,10 @@ public class UserCharacterService {
                 userId, character.getHappinessLevel(), wellnessScore);
     }
 
-    /**
-     * Get character response
-     */
     @Transactional(readOnly = true)
     public CharacterResponse getCharacterResponse(Long userId) {
         UserCharacter character = getOrCreateCharacter(userId);
+        recalibrateXpThreshold(character);
         return buildCharacterResponse(character, false);
     }
 

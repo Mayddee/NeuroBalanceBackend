@@ -65,36 +65,25 @@ public class UserReward {
     // ========== REWARD TYPES ==========
 
     public enum RewardType {
-        STREAK_3_DAYS(
-                "⭐ 3 дня подряд",
-                "Награда: Ваши XP * 1.1",
-                1.1,
-                3
-        ),
-        STREAK_7_DAYS(
-                "🏅 7 дней подряд",
-                "Награда: Ваши XP * 1.3",
-                1.3,
-                7
-        ),
-        STREAK_14_DAYS(
-                "🏆 14 дней подряд",
-                "Награда: Ваши XP * 1.5",
-                1.5,
-                14
-        ),
-        STREAK_21_DAYS(
-                "🎯 21 дня подряд",
-                "Награда: Ваши XP * 1.8",
-                1.8,
-                21
-        ),
-        STREAK_30_DAYS(
-                "💎 30 дней подряд",
-                "Награда: Ваши XP * 2.0",
-                2.0,
-                30
-        );
+        // ===== STREAK MILESTONES (requiredStreak > 0) =====
+        STREAK_3_DAYS("⭐ 3 дня подряд", "Чекин 3 дня подряд — XP ×1.1", 1.1, 3),
+        STREAK_7_DAYS("🏅 Неделя подряд", "Чекин 7 дней подряд — XP ×1.3", 1.3, 7),
+        STREAK_14_DAYS("🏆 Две недели подряд", "Чекин 14 дней подряд — XP ×1.5", 1.5, 14),
+        STREAK_20_DAYS("🔥 20 дней подряд", "Чекин 20 дней подряд — XP ×1.7", 1.7, 20),
+        STREAK_21_DAYS("🎯 21 день подряд", "Чекин 21 день подряд — XP ×1.8", 1.8, 21),
+        STREAK_30_DAYS("💎 Месяц подряд", "Чекин 30 дней подряд — XP ×2.0", 2.0, 30),
+        STREAK_50_DAYS("👑 50 дней подряд", "Невероятный стрик! XP ×2.5", 2.5, 50),
+        STREAK_100_DAYS("🌟 100 дней подряд", "Легенда! XP ×3.0", 3.0, 100),
+
+        // ===== ACHIEVEMENT BADGES (requiredStreak = 0, unlocked by activity) =====
+        FIRST_GAME_PLAYED("🎮 Первая игра", "Ты сыграл в первую игру — начало большого пути!", 1.0, 0),
+        GAME_MASTER_10("🎯 Геймер", "Сыграл 10 игр — держись курса!", 1.05, 0),
+        GAME_MASTER_50("🏅 Мастер игр", "50 игр пройдено — ты настоящий мастер!", 1.1, 0),
+        FIRST_MOOD_LOG("😊 Трекер эмоций", "Записал первое настроение — осознанность растёт!", 1.0, 0),
+        MOOD_TRACKER_7("📊 Эмоциональный аналитик", "7 записей настроения — понимаешь себя!", 1.05, 0),
+        FIRST_LEVEL_UP("⬆️ Первый уровень", "Персонаж достиг 2 уровня — прогресс виден!", 1.0, 0),
+        LEVEL_3_REACHED("🌟 Уровень 3", "Персонаж достиг 3 уровня — XP ×1.1 за игры!", 1.1, 0),
+        PERFECT_DAY("✅ Идеальный день", "Выполнил все 5 задач за один день — браво!", 1.1, 0);
 
         private final String displayName;
         private final String description;
@@ -108,20 +97,10 @@ public class UserReward {
             this.requiredStreak = requiredStreak;
         }
 
-        public String getDisplayName() {
-            return displayName;
-        }
-
-        public String getDescription() {
-            return description;
-        }
-
-        public double getXpMultiplier() {
-            return xpMultiplier;
-        }
-
-        public int getRequiredStreak() {
-            return requiredStreak;
-        }
+        public String getDisplayName() { return displayName; }
+        public String getDescription() { return description; }
+        public double getXpMultiplier() { return xpMultiplier; }
+        public int getRequiredStreak() { return requiredStreak; }
+        public boolean isStreakBased() { return requiredStreak > 0; }
     }
 }
