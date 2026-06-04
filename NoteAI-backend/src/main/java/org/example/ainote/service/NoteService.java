@@ -2,6 +2,7 @@ package org.example.ainote.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.example.ainote.client.CheckinServiceClient;
 import org.example.ainote.entity.Note;
 import org.example.ainote.entity.NoteUser;
 import org.example.ainote.exception.EntityNotFoundException;
@@ -21,6 +22,7 @@ public class NoteService {
 
     private final NoteRepository noteRepository;
     private final NoteUserService noteUserService;
+    private final CheckinServiceClient checkinServiceClient;
 
     @Transactional(readOnly = true)
     public Note getById(Long id) {
@@ -30,6 +32,17 @@ public class NoteService {
 
     @Transactional
     public Note createNoteForUser(Long userId, String title, String content) {
+        return createNoteForUser(userId, title, content, null);
+    }
+
+    /**
+     * Creates a note and asynchronously notifies NBCheckinService to mark
+     * the WRITE_NOTE daily task as completed (fire-and-forget via HTTP).
+     *
+     * @param authorizationHeader full "Bearer <token>" header forwarded from the request
+     */
+    @Transactional
+    public Note createNoteForUser(Long userId, String title, String content, String authorizationHeader) {
         log.info("Creating note for user {}", userId);
 
         NoteUser user = noteUserService.getOrCreate(userId);
@@ -43,6 +56,10 @@ public class NoteService {
         noteUserService.update(user);
 
         log.info("Note created with ID: {}", note.getId());
+
+        // Notify NBCheckinService → auto-complete WRITE_NOTE daily task
+        checkinServiceClient.notifyNoteWritten(authorizationHeader);
+
         return note;
     }
 

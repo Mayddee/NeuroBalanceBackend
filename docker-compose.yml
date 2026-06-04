@@ -224,6 +224,8 @@ services:
         condition: service_healthy
       nbauthservice:
         condition: service_started
+      nb-checkin-service:
+        condition: service_started
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-noteai:5432/${NOTEAI_DB_NAME}
       SPRING_DATASOURCE_USERNAME: ${NOTEAI_DB_USER}
@@ -236,6 +238,8 @@ services:
       SPRING_JPA_SHOW_SQL: "true"
       LOGGING_LEVEL_ROOT: INFO
       LOGGING_LEVEL_ORG_EXAMPLE_AINOTE: DEBUG
+      # NBCheckinService URL for WRITE_NOTE daily task notification
+      CHECKIN_SERVICE_URL: http://nb-checkin-service:8082
     ports:
       - "8083:8083"
     networks:

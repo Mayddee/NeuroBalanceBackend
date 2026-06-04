@@ -138,7 +138,13 @@ public class DailyTaskController {
         }
         LocalDate targetDate = date != null ? date : LocalDate.now(ZoneId.of("Asia/Almaty"));
         log.info("POST /tasks/note-written?date={} - auto-completing WRITE_NOTE for user {}", targetDate, userId);
+
+        // Ensure tasks exist for this date BEFORE trying to auto-complete.
+        // Without this, autoCompleteTask silently does nothing (ifPresent finds nothing).
+        // Same pattern as DailyCheckInService.createCheckIn().
+        taskService.getTasksForDate(userId, targetDate);
         taskService.autoCompleteTask(userId, DailyTask.TaskType.WRITE_NOTE, targetDate);
+
         return ResponseEntity.ok(java.util.Map.of(
                 "message", "WRITE_NOTE task completed",
                 "userId", userId,

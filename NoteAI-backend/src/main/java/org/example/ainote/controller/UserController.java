@@ -27,6 +27,9 @@ public class UserController {
     /**
      * Create note for current user
      * POST /api/v1/users/notes
+     *
+     * After saving the note the JWT token is forwarded to NBCheckinService
+     * so the WRITE_NOTE daily task is automatically completed.
      */
     @PostMapping("/notes")
     public NoteDTO createNote(HttpServletRequest request,
@@ -34,10 +37,13 @@ public class UserController {
         Long userId = (Long) request.getAttribute("userId");
         log.info("POST /users/notes - User {} creating note: {}", userId, noteDTO.getTitle());
 
+        String authorizationHeader = request.getHeader("Authorization");
+
         Note createdNote = noteService.createNoteForUser(
                 userId,
                 noteDTO.getTitle(),
-                noteDTO.getContent()
+                noteDTO.getContent(),
+                authorizationHeader
         );
 
         return noteMapper.toDto(createdNote);
