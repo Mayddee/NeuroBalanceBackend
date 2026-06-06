@@ -1,0 +1,24 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "Auth DB (nbauthservice)",
+      "Group": "NeuroBalance",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "nbauthservice",
+      "Username": "amangeldimadina",
+      "SSLMode": "prefer",
+      "Comment": "NBAuthService database — users, onboarding, JWT"
+    },
+    "2": {
+      "Name": "Checkin DB (nb_checkin) — daily_ml_recommendation HERE",
+      "Group": "NeuroBalance",
+      "Host": "postgres-checkin",
+      "Port": 5432,
+      "MaintenanceDB": "nb_checkin",
+      "Username": "amangeldimadina",
+      "SSLMode": "prefer",
+      "Comment": "NBCheckinService database — check-ins, sleep, mood, games, ML recommendations"
+    }
+  }
+}

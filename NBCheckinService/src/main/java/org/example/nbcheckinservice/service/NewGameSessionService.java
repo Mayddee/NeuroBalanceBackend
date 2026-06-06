@@ -166,10 +166,20 @@ public class NewGameSessionService {
     public Integer getPersonalBest(Long userId, NewGameSession.GameType gameType) {
         List<NewGameSession> sessions = gameRepository.findByUserIdAndGameType(userId, gameType);
         if (gameType == NewGameSession.GameType.DONUT_GAME) {
-            return sessions.stream().mapToInt(NewGameSession::getDurationSeconds).max().orElse(0);
+            // DONUT: max duration survived (higher = better). Skip sessions with null durationSeconds.
+            return sessions.stream()
+                    .filter(s -> s.getDurationSeconds() != null)
+                    .mapToInt(NewGameSession::getDurationSeconds)
+                    .max()
+                    .orElse(0);
         } else {
-            return sessions.stream().filter(NewGameSession::getIsWon)
-                    .mapToInt(NewGameSession::getDurationSeconds).min().orElse(0);
+            // NUMBER_SEQUENCE: min completion time among wins (lower = better).
+            // Filter out sessions with null durationSeconds to prevent NPE on unboxing.
+            return sessions.stream()
+                    .filter(s -> Boolean.TRUE.equals(s.getIsWon()) && s.getDurationSeconds() != null)
+                    .mapToInt(NewGameSession::getDurationSeconds)
+                    .min()
+                    .orElse(0);
         }
     }
 

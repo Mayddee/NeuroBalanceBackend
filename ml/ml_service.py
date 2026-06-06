@@ -13,7 +13,19 @@ from catboost import CatBoostRegressor
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 import json
+
+# ── Per-user recommendation cache (in-memory, keyed by user_id) ──────────────
+# Populated when Java backend calls /recommend/top3 with user_id (Kafka-triggered events).
+# Frontend calls /recommend/top3 with user_id → gets cached result instead of defaults.
+# Cache is per-day (Asia/Almaty); new day = stale = recompute.
+_ALMATY = ZoneInfo('Asia/Almaty')
+_user_cache: dict = {}  # {str(user_id): {'date': 'YYYY-MM-DD', 'result': dict}}
+
+
+def _today_almaty() -> str:
+    return datetime.now(_ALMATY).date().isoformat()
 
 
 def convert_to_serializable(obj):
@@ -235,6 +247,10 @@ except Exception:
 
 def calc_engineered_features(data):
     res = data.copy()
+    # FIX: exercise_frequency_num must be derived FIRST — it is used in multiple calculations below.
+    # Previously it was set at the END, so all intermediate calculations used the default (3).
+    res['exercise_frequency_num'] = data.get('exercise_frequency', 3)
+
     r_norm = (data.get('reaction_time', 350) - 200) / 400
     s_norm = (data.get('stress_level', 5) - 1) / 9
     sleep_debt = max(0, 7 - data.get('sleep_duration', 7)) / 3
@@ -243,12 +259,11 @@ def calc_engineered_features(data):
     res['sleep_debt'] = max(0, 7 - data.get('sleep_duration', 7))
     res['memory_efficiency'] = (data.get('memory_test_score', 70) / data.get('reaction_time', 350)) * 1000
     sleep_sc = np.clip((data.get('sleep_duration', 7) - 4) / 6, 0, 1)
-    ex_sc = np.clip(data.get('exercise_frequency_num', 3) / 7, 0, 1)
+    ex_sc = np.clip(res['exercise_frequency_num'] / 7, 0, 1)   # now uses the actual value, not default
     st_sc = 1 - ((data.get('stress_level', 5) - 1) / 9)
     scr_sc = 1 - np.clip((data.get('daily_screen_time', 8) - 1) / 11, 0, 1)
     res['lifestyle_balance'] = (0.30 * sleep_sc + 0.25 * st_sc + 0.20 * ex_sc + 0.15 * scr_sc) * 100
-    res['sleep_exercise_interaction'] = data.get('sleep_duration', 7) * data.get('exercise_frequency_num', 3)
-    res['exercise_frequency_num'] = data.get('exercise_frequency', 3)
+    res['sleep_exercise_interaction'] = data.get('sleep_duration', 7) * res['exercise_frequency_num']
     return res
 
 
@@ -465,9 +480,32 @@ def recommend_top3():
         if not data:
             return jsonify({'error': 'No data provided'}), 400
 
+        user_id = str(data.get('user_id', '')) or None
+        # internal=True means Java backend (Kafka event) — always recompute + update cache
+        is_internal = bool(data.get('internal', False))
+
+        # ── Cache hit: return stored result from last Kafka-triggered computation ──
+        # Only for frontend calls (internal=False). Java calls always recompute.
+        if user_id and not is_internal:
+            cached = _user_cache.get(user_id)
+            if cached and cached.get('date') == _today_almaty():
+                logger.info(f"ML cache hit for user {user_id}")
+                return Response(
+                    json.dumps({'status': 'success', **cached['result']}, ensure_ascii=False),
+                    mimetype='application/json',
+                    headers={'Content-Type': 'application/json; charset=utf-8'}
+                )
+
+        # ── Compute: Java internal (real data) or frontend first-time (defaults) ──
         user_data = calc_engineered_features(data)
         result = smart_selector.select_top_3(user_data, scaler)
         clean_result = convert_to_serializable(result)
+
+        # Cache result for this user (always update when internal, first-time when frontend)
+        if user_id:
+            _user_cache[user_id] = {'date': _today_almaty(), 'result': clean_result}
+            source = "internal-java" if is_internal else "first-call"
+            logger.info(f"ML cache updated for user {user_id} (source={source}, score={result.get('cognitive_score', '?')})")
 
         return Response(
             json.dumps({'status': 'success', **clean_result}, ensure_ascii=False),
@@ -476,6 +514,50 @@ def recommend_top3():
         )
     except Exception as e:
         logger.error(f"❌ Error in /recommend/top3: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@app.route('/internal/cache/update', methods=['POST'])
+def internal_cache_update():
+    """
+    Internal endpoint — NOT for frontend.
+    Java backend calls this after every Kafka-triggered ML recomputation
+    (check-in, sleep, game, mood) to push real computed results into Python's cache.
+    Next frontend call to /recommend/top3 with the same user_id returns this result.
+    ---
+    tags:
+      - Internal
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            user_id:
+              type: integer
+              example: 5
+            result:
+              type: object
+    responses:
+      200:
+        description: Cache updated
+      400:
+        description: Missing user_id
+    """
+    try:
+        data = request.get_json()
+        if not data or 'user_id' not in data:
+            return jsonify({'error': 'user_id required'}), 400
+
+        user_id = str(data['user_id'])
+        result = data.get('result', {})
+
+        _user_cache[user_id] = {'date': _today_almaty(), 'result': result}
+        logger.info(f"ML cache updated via internal push for user {user_id}")
+        return jsonify({'status': 'ok', 'user_id': user_id}), 200
+    except Exception as e:
+        logger.error(f"Error in /internal/cache/update: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 

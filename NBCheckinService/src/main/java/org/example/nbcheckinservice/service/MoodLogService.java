@@ -32,6 +32,7 @@ public class MoodLogService {
     private final MoodLogRepository moodLogRepository;
     private final DailyTaskService dailyTaskService;
     private final RewardService rewardService;
+    private final MLRecommendationCacheService mlRecommendationCacheService;
 
     @Transactional
     public MoodLogResponse createMoodLog(Long userId, MoodLogRequest request) {
@@ -66,11 +67,12 @@ public class MoodLogService {
         LocalDate taskDate = timestamp.toLocalDate();
         dailyTaskService.autoCompleteTask(userId, DailyTask.TaskType.LOG_MOOD, taskDate);
 
-        // Check mood-based rewards after commit (FIRST_MOOD_LOG, MOOD_TRACKER_7)
+        // After commit: check rewards + refresh ML recommendations with fresh mood context
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 rewardService.checkAndUnlockRewards(userId);
+                mlRecommendationCacheService.asyncRefresh(userId, "mood.logged");
             }
         });
 
@@ -192,6 +194,14 @@ public class MoodLogService {
 
         MoodLog updatedLog = moodLogRepository.save(moodLog);
         log.info("Mood log {} updated successfully", id);
+
+        // Refresh ML recommendations after mood update (runs after TX commits)
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                mlRecommendationCacheService.asyncRefresh(userId, "mood.updated");
+            }
+        });
 
         return mapToResponse(updatedLog);
     }

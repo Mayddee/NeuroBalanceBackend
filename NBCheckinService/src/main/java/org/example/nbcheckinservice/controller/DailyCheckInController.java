@@ -60,15 +60,20 @@ public class DailyCheckInController {
     }
 
     /**
-     * Get today's check-in
+     * Get today's check-in.
+     * Returns 404 (not 400) when the user hasn't checked in yet today.
      */
     @GetMapping("/today")
     public ResponseEntity<CheckInResponse> getTodayCheckIn(HttpServletRequest request) {
         Long userId = getUserId(request);
         log.info("GET /checkins/today - User {}", userId);
-        // Сервис внутри уже использует ALMATY_ZONE
-        CheckInResponse response = checkInService.getTodayCheckIn(userId);
-        return ResponseEntity.ok(response);
+        try {
+            CheckInResponse response = checkInService.getTodayCheckIn(userId);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            log.debug("No check-in today for user {} — returning 404", userId);
+            return ResponseEntity.notFound().build();
+        }
     }
 
     /**
@@ -87,7 +92,8 @@ public class DailyCheckInController {
     }
 
     /**
-     * Get check-in for specific date
+     * Get check-in for specific date.
+     * Returns 404 when no check-in exists for that date.
      */
     @GetMapping("/{date}")
     public ResponseEntity<CheckInResponse> getCheckInByDate(
@@ -96,8 +102,13 @@ public class DailyCheckInController {
     ) {
         Long userId = getUserId(request);
         log.info("GET /checkins/{} - User {}", date, userId);
-        CheckInResponse response = checkInService.getCheckIn(userId, date);
-        return ResponseEntity.ok(response);
+        try {
+            CheckInResponse response = checkInService.getCheckIn(userId, date);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            log.debug("No check-in for user {} on {} — returning 404", userId, date);
+            return ResponseEntity.notFound().build();
+        }
     }
 
     /**

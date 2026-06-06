@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.nbcheckinservice.dto.SleepLogRequest;
 import org.example.nbcheckinservice.dto.SleepLogResponse;
+import org.example.nbcheckinservice.entity.DailyTask;
 import org.example.nbcheckinservice.entity.SleepLog;
 import org.example.nbcheckinservice.event.SleepLoggedApplicationEvent;
 import org.example.nbcheckinservice.repository.SleepLogRepository;
@@ -11,6 +12,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -31,15 +33,18 @@ public class SleepLogService {
 
     private final SleepLogRepository sleepLogRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final DailyTaskService dailyTaskService;
 
     @Transactional
     public SleepLogResponse createSleepLog(Long userId, SleepLogRequest request) {
         log.info("Creating sleep log for user {} on date {}", userId, request.getSleepDate());
 
+        // Upsert: if a log already exists for this date, update it instead of throwing.
+        // Frontend may call POST again after app restart or navigation — handle it gracefully.
         if (sleepLogRepository.existsByUserIdAndSleepDate(userId, request.getSleepDate())) {
-            throw new IllegalArgumentException(
-                    "Sleep log for date " + request.getSleepDate() + " already exists. Use PUT to update."
-            );
+            log.info("Sleep log already exists for user {} on {} — updating instead of rejecting",
+                    userId, request.getSleepDate());
+            return updateSleepLogByDate(userId, request.getSleepDate(), request);
         }
 
         SleepLog sleepLog = buildSleepLogFromRequest(userId, request);
@@ -48,6 +53,7 @@ public class SleepLogService {
         SleepLog savedLog = sleepLogRepository.save(sleepLog);
         log.info("Sleep log created with ID: {}", savedLog.getId());
 
+        autoCompleteSleepTaskIfNeeded(userId, savedLog);
         eventPublisher.publishEvent(new SleepLoggedApplicationEvent(userId, request.getSleepDate(), "CREATED"));
 
         return mapToResponse(savedLog);
@@ -130,6 +136,7 @@ public class SleepLogService {
         SleepLog updatedLog = sleepLogRepository.save(sleepLog);
         log.info("Sleep log {} updated successfully", id);
 
+        autoCompleteSleepTaskIfNeeded(userId, updatedLog);
         eventPublisher.publishEvent(new SleepLoggedApplicationEvent(userId, sleepLog.getSleepDate(), "UPDATED"));
 
         return mapToResponse(updatedLog);
@@ -150,6 +157,7 @@ public class SleepLogService {
         SleepLog updatedLog = sleepLogRepository.save(sleepLog);
         log.info("Sleep log updated successfully for date {}", date);
 
+        autoCompleteSleepTaskIfNeeded(userId, updatedLog);
         eventPublisher.publishEvent(new SleepLoggedApplicationEvent(userId, date, "UPDATED"));
 
         return mapToResponse(updatedLog);
@@ -182,6 +190,21 @@ public class SleepLogService {
     }
 
     // ========== HELPER METHODS ==========
+
+    /**
+     * Auto-completes SLEEP_7_HOURS daily task when sleep log has 7+ hours.
+     * Covers: create new log, update by date (+ upsert path from create), update by ID.
+     */
+    private void autoCompleteSleepTaskIfNeeded(Long userId, SleepLog savedSleepLog) {
+        if (savedSleepLog.getTotalHours() != null
+                && savedSleepLog.getTotalHours().compareTo(new BigDecimal("7.0")) >= 0) {
+            LocalDate date = savedSleepLog.getSleepDate();
+            dailyTaskService.getTasksForDate(userId, date);
+            dailyTaskService.autoCompleteTask(userId, DailyTask.TaskType.SLEEP_7_HOURS, date);
+            log.info("SLEEP_7_HOURS auto-completed for user {} on {} (totalHours={})",
+                    userId, date, savedSleepLog.getTotalHours());
+        }
+    }
 
     private SleepLog buildSleepLogFromRequest(Long userId, SleepLogRequest request) {
         return SleepLog.builder()

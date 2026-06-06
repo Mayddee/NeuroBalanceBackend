@@ -46,14 +46,17 @@ public class NoteAiService {
         Note note = noteService.getNote(userId, noteId);
 
         String prompt = """
+                [LANGUAGE — MANDATORY] Detect the language of the note below. \
+                Your ENTIRE response MUST be written in that EXACT language. \
+                Russian note → Russian response. Kazakh note → Kazakh response. \
+                English note → English response. NEVER default to English for non-English notes.
+
                 You are a personal wellness journaling assistant in NeuroBalance — \
                 a cognitive health tracking app.
 
-                Summarize the following journal note in **1–2 sentences**.
-                Rules:
-                - Respond ONLY in the same language as the note (do NOT translate).
-                - Output ONLY the summary — no introductions, labels, or extra text.
-                - Keep it concise and capture the core message.
+                Summarize the following journal note in 1–2 sentences.
+                Output ONLY the summary — no introductions, labels, or extra text.
+                Keep it concise and capture the core message.
 
                 Note title: %s
                 Note content:
@@ -88,6 +91,11 @@ public class NoteAiService {
         Note note = noteService.getNote(userId, noteId);
 
         String prompt = """
+                [LANGUAGE — MANDATORY] Detect the language of the note below. \
+                ALL JSON field values MUST be written in that EXACT language. \
+                Russian note → Russian values. Kazakh note → Kazakh values. \
+                English note → English values. NEVER write field values in English if the note is in another language.
+
                 You are a mental wellness AI integrated in NeuroBalance — a cognitive health \
                 tracking app that measures three daily metrics:
                   • M-Rest   (sleep & recovery quality, 0-100)
@@ -95,25 +103,23 @@ public class NoteAiService {
                   • M-Balance (emotional balance & stress, 0-100)
 
                 Analyze the journal note below and respond with ONLY a valid JSON object \
-                — no markdown, no backticks, no extra text.
+                — no markdown, no backticks, no extra text outside the JSON.
 
                 Required JSON structure:
                 {
-                  "tone": "<1-2 words describing the emotional tone, e.g. anxious / hopeful / fatigued>",
+                  "tone": "<1-2 words describing the emotional tone>",
                   "themes": ["<theme1>", "<theme2>", "<theme3>"],
-                  "wellnessInsight": "<1 sentence connecting this note to the user's M-Rest/M-Ready/M-Balance health>",
-                  "suggestion": "<1 specific, realistic 10-15 minute wellness action the user can do today>",
+                  "wellnessInsight": "<1 sentence connecting this note to M-Rest/M-Ready/M-Balance>",
+                  "suggestion": "<1 specific, realistic 10-15 minute wellness action for today>",
                   "summary": "<1-2 sentence summary of the note>"
                 }
 
-                Rules:
-                - All text values must be in the SAME LANGUAGE as the note.
+                Additional rules:
                 - Be empathetic, non-judgmental, and practical.
-                - Keep themes as short keywords or phrases (1-4 words each).
+                - Keep themes as short keywords (1-4 words each).
                 - Wellness insight must reference at least one of: sleep quality, energy level, \
                   stress management, mood, physical activity, or social connection.
-                - Suggestion must be actionable, specific, and doable in under 15 minutes \
-                  (e.g. "Take a 10-minute walk outside", "Write 3 things you're grateful for").
+                - Suggestion must be doable in under 15 minutes.
 
                 Note title: %s
                 Note content:
@@ -159,6 +165,11 @@ public class NoteAiService {
         }
 
         String prompt = """
+                [LANGUAGE — MANDATORY] Detect the language of the user's message below. \
+                Your ENTIRE answer MUST be in that EXACT language. \
+                Russian message → Russian answer. Kazakh message → Kazakh answer. \
+                English message → English answer. NEVER respond in English if the message is in another language.
+
                 You are a helpful wellness AI assistant inside NeuroBalance — a personal \
                 mental health journaling app that tracks sleep (M-Rest), cognitive readiness \
                 (M-Ready), and emotional balance (M-Balance).
@@ -167,13 +178,9 @@ public class NoteAiService {
                 %s
 
                 Rules:
-                - Respond in the SAME LANGUAGE as the user's message.
                 - Be concise (2-5 sentences), empathetic, and practical.
-                - If the question relates to health, reference sleep, energy, stress, or mood \
-                  where relevant.
-                - If no note context is provided and the question is about a specific note, \
-                  kindly ask the user to specify which note they mean.
-                - Only output the answer — no preamble, no labels.
+                - If the question relates to health, reference sleep, energy, stress, or mood where relevant.
+                - Only output the answer — no preamble, no labels, no meta-commentary.
                 """.formatted(noteContext, message);
 
         String answer = callAi(prompt);
@@ -202,14 +209,17 @@ public class NoteAiService {
      */
     public NoteAiResponse summarizeRaw(Long userId, Long referenceId, String title, String content) {
         String prompt = """
+                [LANGUAGE — MANDATORY] Detect the language of the note below. \
+                Your ENTIRE response MUST be in that EXACT language. \
+                Russian note → Russian response. Kazakh note → Kazakh response. \
+                English note → English response. NEVER default to English for non-English notes.
+
                 You are a personal wellness journaling assistant in NeuroBalance — \
                 a cognitive health tracking app.
 
-                Summarize the following journal note in **1–2 sentences**.
-                Rules:
-                - Respond ONLY in the same language as the note (do NOT translate).
-                - Output ONLY the summary — no introductions, labels, or extra text.
-                - Keep it concise and capture the core message.
+                Summarize the following journal note in 1–2 sentences.
+                Output ONLY the summary — no introductions, labels, or extra text.
+                Keep it concise and capture the core message.
 
                 Note title: %s
                 Note content:
@@ -232,6 +242,11 @@ public class NoteAiService {
      */
     public NoteAiResponse analyzeWellnessRaw(Long userId, Long referenceId, String title, String content) {
         String prompt = """
+                [LANGUAGE — MANDATORY] Detect the language of the note below. \
+                ALL JSON field values MUST be in that EXACT language. \
+                Russian note → Russian values. Kazakh note → Kazakh values. \
+                English note → English values. NEVER write English values for non-English notes.
+
                 You are a mental wellness AI integrated in NeuroBalance — a cognitive health \
                 tracking app that measures three daily metrics:
                   • M-Rest   (sleep & recovery quality, 0-100)
@@ -239,19 +254,18 @@ public class NoteAiService {
                   • M-Balance (emotional balance & stress, 0-100)
 
                 Analyze the journal note below and respond with ONLY a valid JSON object \
-                — no markdown, no backticks, no extra text.
+                — no markdown, no backticks, no extra text outside the JSON.
 
                 Required JSON structure:
                 {
                   "tone": "<1-2 words describing the emotional tone>",
                   "themes": ["<theme1>", "<theme2>", "<theme3>"],
-                  "wellnessInsight": "<1 sentence connecting this note to the user's M-Rest/M-Ready/M-Balance>",
+                  "wellnessInsight": "<1 sentence connecting this note to M-Rest/M-Ready/M-Balance>",
                   "suggestion": "<1 specific, realistic 10-15 minute wellness action for today>",
                   "summary": "<1-2 sentence summary of the note>"
                 }
 
-                Rules:
-                - All text values must be in the SAME LANGUAGE as the note.
+                Additional rules:
                 - Be empathetic, non-judgmental, and practical.
                 - Keep themes as short keywords (1-4 words each).
                 - Suggestion must be doable in under 15 minutes.
@@ -283,6 +297,11 @@ public class NoteAiService {
                 : "";
 
         String prompt = """
+                [LANGUAGE — MANDATORY] Detect the language of the user's message below. \
+                Your ENTIRE answer MUST be in that EXACT language. \
+                Russian message → Russian answer. Kazakh message → Kazakh answer. \
+                English message → English answer. NEVER respond in English if the message is in another language.
+
                 You are a helpful wellness AI assistant inside NeuroBalance — a personal \
                 mental health journaling app that tracks sleep (M-Rest), cognitive readiness \
                 (M-Ready), and emotional balance (M-Balance).
@@ -291,9 +310,9 @@ public class NoteAiService {
                 %s
 
                 Rules:
-                - Respond in the SAME LANGUAGE as the user's message.
                 - Be concise (2-5 sentences), empathetic, and practical.
-                - Only output the answer — no preamble, no labels.
+                - If the question relates to health, reference sleep, energy, stress, or mood where relevant.
+                - Only output the answer — no preamble, no labels, no meta-commentary.
                 """.formatted(noteContext, message);
 
         String answer = callAi(prompt);
