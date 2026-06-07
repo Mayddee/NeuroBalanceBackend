@@ -13,6 +13,8 @@ import org.example.nbcheckinservice.repository.BrainGameResultRepository;
 import org.example.nbcheckinservice.repository.UserGameStatsRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -30,6 +32,7 @@ public class BrainGameService {
     private final DailyTaskService dailyTaskService;
     private final KafkaProducerService kafkaProducerService;
     private final UserCharacterService characterService;
+    private final RewardService rewardService;
 
     private static final ZoneId ALMATY_ZONE = ZoneId.of("Asia/Almaty");
 
@@ -95,6 +98,14 @@ public class BrainGameService {
                 request.getIsWin(),
                 xpEarned
         );
+
+        // Check rewards after commit — same pattern as NewGameSessionService/GameSessionService
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                rewardService.checkAndUnlockRewards(userId);
+            }
+        });
 
         String message = todayCountForType >= DAILY_XP_GAME_LIMIT
                 ? "Лимит XP за этот тип игры исчерпан (3 игры в день). Результат записан."

@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.nbcheckinservice.dto.RewardResponse;
 import org.example.nbcheckinservice.entity.UserReward;
 import org.example.nbcheckinservice.entity.UserStreak;
+import org.example.nbcheckinservice.repository.BrainGameResultRepository;
 import org.example.nbcheckinservice.repository.DailyTaskRepository;
 import org.example.nbcheckinservice.repository.GameSessionRepository;
 import org.example.nbcheckinservice.repository.MoodLogRepository;
@@ -44,6 +45,7 @@ public class RewardService {
     private final UserStreakRepository streakRepository;
     private final GameSessionRepository gameSessionRepository;
     private final NewGameSessionRepository newGameSessionRepository;
+    private final BrainGameResultRepository brainGameResultRepository;
     private final MoodLogRepository moodLogRepository;
     private final UserCharacterRepository characterRepository;
     private final DailyTaskRepository taskRepository;
@@ -109,7 +111,8 @@ public class RewardService {
         List<UserReward> unlocked = new ArrayList<>();
 
         long totalGames = gameSessionRepository.countByUserId(userId)
-                + newGameSessionRepository.countByUserId(userId);
+                + newGameSessionRepository.countByUserId(userId)
+                + brainGameResultRepository.countByUserId(userId);
         long totalMoodLogs = moodLogRepository.countByUserId(userId);
         int characterLevel = characterRepository.findByUserId(userId)
                 .map(c -> c.getCurrentLevel())

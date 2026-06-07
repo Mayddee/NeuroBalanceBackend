@@ -12,6 +12,8 @@ import java.util.List;
 @Repository
 public interface BrainGameResultRepository extends JpaRepository<BrainGameResult, Long> {
 
+    long countByUserId(Long userId);
+
     // Поиск всей истории игр пользователя (от новых к старым)
     List<BrainGameResult> findByUserIdOrderByPlayedAtDesc(Long userId);
 
