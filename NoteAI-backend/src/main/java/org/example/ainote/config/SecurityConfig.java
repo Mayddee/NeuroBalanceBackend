@@ -44,7 +44,9 @@ public class SecurityConfig {
                                 "/swagger-resources/**",
                                 "/webjars/**",
                                 "/actuator/**",
-                                "/api/chat/**"  // AI endpoints
+                                "/api/chat/**",
+                                "/noteai/swagger-ui/**",
+                                "/noteai/v3/api-docs/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
@@ -60,10 +62,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOrigins(Arrays.asList(
-                "http://localhost:3000",
-                "http://localhost:8080"
-        ));
+        configuration.setAllowedOriginPatterns(Arrays.asList("*"));
 
         configuration.setAllowedMethods(Arrays.asList(
                 "GET", "POST", "PUT", "DELETE", "OPTIONS"
