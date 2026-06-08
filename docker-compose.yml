@@ -12,7 +12,7 @@ services:
       POSTGRES_USER: ${AUTH_DB_USER}
       POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD}
     ports:
-      - "${AUTH_DB_PORT}:5432"
+      - "127.0.0.1:${AUTH_DB_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -27,7 +27,7 @@ services:
     volumes:
       - ./pgadmin_servers.json:/pgadmin4/servers.json:ro
     ports:
-      - "${PGADMIN_PORT}:80"
+      - "127.0.0.1:${PGADMIN_PORT}:80"
     networks:
       - nbauthservice-network
     depends_on:
@@ -59,8 +59,6 @@ services:
       TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER}
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_JPA_SHOW_SQL: "true"
-    ports:
-      - "8081:8081"
     networks:
       - nbauthservice-network
 
@@ -75,7 +73,7 @@ services:
       POSTGRES_USER: ${CHECKIN_DB_USER}
       POSTGRES_PASSWORD: ${CHECKIN_DB_PASSWORD}
     ports:
-      - "${CHECKIN_DB_PORT}:5432"
+      - "127.0.0.1:${CHECKIN_DB_PORT}:5432"
     volumes:
       - postgres_checkin_data:/var/lib/postgresql/data
     networks:
@@ -119,8 +117,6 @@ services:
       ML_SERVICE_URL: http://ml-service:5001
       AUTH_SERVICE_URL: http://nbauthservice:8081
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-    ports:
-      - "8082:8082"
     networks:
       - nbauthservice-network
     restart: unless-stopped
@@ -133,8 +129,6 @@ services:
       context: ./ml
       dockerfile: Dockerfile
     container_name: neural-balance-ml
-    ports:
-      - "5001:5001"
     environment:
       PORT: 5001
     volumes:
@@ -184,7 +178,7 @@ services:
       KAFKA_LOG_RETENTION_HOURS: 24
       KAFKA_LOG_DIRS: /var/lib/kafka/data
     ports:
-      - "29092:29092"
+      - "127.0.0.1:29092:29092"
     volumes:
       - kafka_data:/var/lib/kafka/data
     networks:
@@ -207,7 +201,7 @@ services:
       POSTGRES_USER: ${NOTEAI_DB_USER}
       POSTGRES_PASSWORD: ${NOTEAI_DB_PASSWORD}
     ports:
-      - "${NOTEAI_DB_PORT}:5432"
+      - "127.0.0.1:${NOTEAI_DB_PORT}:5432"
     volumes:
       - postgres_noteai_data:/var/lib/postgresql/data
     networks:
@@ -244,11 +238,48 @@ services:
       LOGGING_LEVEL_ORG_EXAMPLE_AINOTE: DEBUG
       # NBCheckinService URL for WRITE_NOTE daily task notification
       CHECKIN_SERVICE_URL: http://nb-checkin-service:8082
-    ports:
-      - "8083:8083"
     networks:
       - nbauthservice-network
     restart: unless-stopped
+
+  # ===============================
+  # NGINX (SSL Termination + Reverse Proxy)
+  # profiles: [production]  →  only starts on server via: docker compose --profile production up -d
+  # ===============================
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: nb-nginx
+    profiles: ["production"]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/templates:/etc/nginx/templates:ro
+      - ./nginx/certbot/conf:/etc/letsencrypt:ro
+      - ./nginx/certbot/www:/var/www/certbot:ro
+    environment:
+      - NGINX_DOMAIN=${DOMAIN}
+    depends_on:
+      - nbauthservice
+      - nb-checkin-service
+      - noteai-service
+    networks:
+      - nbauthservice-network
+    restart: unless-stopped
+
+  # ===============================
+  # CERTBOT (Auto SSL Renewal)
+  # ===============================
+  certbot:
+    image: certbot/certbot:latest
+    container_name: nb-certbot
+    profiles: ["production"]
+    volumes:
+      - ./nginx/certbot/conf:/etc/letsencrypt
+      - ./nginx/certbot/www:/var/www/certbot
+    entrypoint: /bin/sh -c "trap exit TERM; while :; do certbot renew --quiet; sleep 12h & wait $${!}; done"
+    networks:
+      - nbauthservice-network
 
 volumes:
   postgres_data:

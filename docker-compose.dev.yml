@@ -1,0 +1,19 @@
+# Локальная разработка — добавляет прямые порты для тестирования без nginx.
+# Использование: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+
+services:
+  nbauthservice:
+    ports:
+      - "8081:8081"
+
+  nb-checkin-service:
+    ports:
+      - "8082:8082"
+
+  noteai-service:
+    ports:
+      - "8083:8083"
+
+  ml-service:
+    ports:
+      - "5001:5001"
