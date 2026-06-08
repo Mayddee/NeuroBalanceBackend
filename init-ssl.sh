@@ -45,14 +45,16 @@ echo "Done."
 # ── Step 2: start nginx only (other services not needed for challenge) ────────
 echo ""
 echo "[2/4] Starting nginx..."
-docker compose --profile production up -d nginx
+docker-compose --profile production up -d nginx
 echo "Waiting 5s for nginx to be ready..."
 sleep 5
 
 # ── Step 3: obtain real certificate via webroot challenge ─────────────────────
 echo ""
 echo "[3/4] Obtaining Let's Encrypt certificate..."
-docker compose --profile production run --rm certbot certonly \
+docker-compose --profile production up -d certbot
+sleep 3
+docker exec nb-certbot certbot certonly \
     --webroot \
     --webroot-path=/var/www/certbot \
     --email "${EMAIL}" \
@@ -63,7 +65,7 @@ docker compose --profile production run --rm certbot certonly \
 # ── Step 4: reload nginx with the real certificate ────────────────────────────
 echo ""
 echo "[4/4] Reloading nginx with real certificate..."
-docker compose exec nginx nginx -s reload
+docker exec nb-nginx nginx -s reload
 
 echo ""
 echo "============================================"
